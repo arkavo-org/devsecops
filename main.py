@@ -295,6 +295,7 @@ class ChatNode:
 def stream_graph_updates(u_input: str):
     """Stream graph updates with proper checkpointing configuration."""
     try:
+        print("\n=== Stream Graph Updates ===")
         print(f"stream_graph_updates {u_input}")
         # Initial state
         initial_state = {
@@ -309,18 +310,24 @@ def stream_graph_updates(u_input: str):
             }
         }
         print(f"config {config}")
+        print("Starting graph stream...")
         for event in graph.stream(initial_state, config=config):
+            print(f"Processing event: {event}")
             for value in event.values():
                 if "messages" in value:
-                    if isinstance(value["messages"][-1], (HumanMessage, SystemMessage, AIMessage)):
-                        print("Assistant:", value["messages"][-1].content)
-                    elif isinstance(value["messages"][-1], tuple):
-                        print("Assistant:", value["messages"][-1][1])
+                    message = value["messages"][-1]
+                    print(f"Message type: {type(message)}")
+                    if isinstance(message, (HumanMessage, SystemMessage, AIMessage)):
+                        print("Assistant:", message.content)
+                    elif isinstance(message, tuple):
+                        print("Assistant:", message[1])
                     else:
-                        print("Assistant:", value["messages"][-1])
+                        print("Assistant:", message)
     except Exception as ex:
         print(f"Error in stream_graph_updates: {str(ex)}")
         print(f"Full error details: ", ex.__dict__)  # Add more error details for debugging
+        import traceback
+        traceback.print_exc()
 
 def load_env(file_path=".env"):
     if not os.path.exists(file_path):
@@ -376,11 +383,13 @@ if __name__ == "__main__":
         raise RuntimeError("The ANTHROPIC_API_KEY environment variable is not set.")
 
     # Initialize LLMs
+    print("Initializing language models...")
     haiku = ChatAnthropic(model="claude-3-5-haiku-20241022")
     mistral = ChatOllama(model="mistral")
     deepseek = ChatOllama(model="deepseek-coder-v2")
 
     # Initialize tools
+    print("Setting up tools...")
     ddg = DuckDuckGoSearchRun()
     search_tool = Tool(
         name="search",
@@ -507,21 +516,30 @@ if __name__ == "__main__":
         Always provide clear feedback about what operation was performed and its result."""
     )
     # Create nodes
+    print("Creating nodes...")
     haiku_node = ChatNode(haiku_agent)
     mistral_node = ChatNode(mistral_agent)
     deepseek_node = CodeNode(deepseek)
     tool_node = ToolNode(tools=tools)
-    gitlab_node = GitLabNode(gitlab_agent)
+    gitlab_node = GitLabNode(haiku)
 
     # Build graph
+    print("Setting up graph...")
     graph_builder = StateGraph(State)
 
     # Add nodes
-    graph_builder.add_node("haiku", create_node_with_logging("haiku", haiku_node))
-    graph_builder.add_node("mistral", create_node_with_logging("mistral", mistral_node))
-    graph_builder.add_node("deepseek", create_node_with_logging("deepseek", deepseek_node))
-    graph_builder.add_node("tools", create_node_with_logging("tools", tool_node))
-    graph_builder.add_node("gitlab", create_node_with_logging("gitlab", gitlab_node))
+    nodes = {
+        "haiku": haiku_node,
+        "mistral": mistral_node,
+        "deepseek": deepseek_node,
+        "tools": tool_node,
+        "gitlab": gitlab_node
+    }
+
+    # Add each node with logging wrapper
+    for node_name, node in nodes.items():
+        graph_builder.add_node(node_name, create_node_with_logging(node_name, node))
+        print(f"Added node: {node_name}")
 
     def detect_query_type_with_logging(state: State) -> str:
         print(f"Detecting query type for state: {state}")
@@ -529,18 +547,6 @@ if __name__ == "__main__":
         print(f"Detected query type: {query_type}")
         return query_type
 
-    # Add conditional edges from START
-    graph_builder.add_conditional_edges(
-        START,
-        detect_query_type,
-        {
-            QueryType.CODE.value: "deepseek",
-            QueryType.CHAT_MISTRAL.value: "mistral",
-            QueryType.CHAT_HAIKU.value: "haiku",
-            QueryType.TOOLS.value: "tools",
-            QueryType.END.value: END
-        }
-    )
     # Update edges
     edges = {
         QueryType.CODE.value: "deepseek",
@@ -558,34 +564,24 @@ if __name__ == "__main__":
         edges
     )
 
-    # Add edges from each node
-    for node in ["haiku", "mistral", "deepseek", "tools", "gitlab"]:
+    # Add edges from each node to all possible destinations
+    for node_name in nodes.keys():
         graph_builder.add_conditional_edges(
-            node,
+            node_name,
             detect_query_type_with_logging,
             edges
         )
+        print(f"Added edges for node: {node_name}")
 
-    # Tools edge
-    graph_builder.add_conditional_edges(
-        "tools",
-        detect_query_type,
-        {
-            QueryType.CODE.value: "deepseek",
-            QueryType.CHAT_MISTRAL.value: "mistral",
-            QueryType.CHAT_HAIKU.value: "haiku",
-            QueryType.TOOLS.value: "tools",
-            QueryType.END.value: END
-        }
-    )
     checkpointer = MemorySaver()
     kvstore = InMemoryStore()
     # Compile graph
+    print("\nCompiling graph...")
     graph = graph_builder.compile(
         checkpointer=checkpointer,
         store=kvstore
     )
-
+    print("Graph compilation complete")
     # Test specific GitLab operations
     test_queries = [
         "show all open issues",  # Tests get_issues mode
@@ -615,6 +611,10 @@ if __name__ == "__main__":
             print(f"Result: {result}")
         except Exception as e:
             print(f"Error: {e}")
+
+    test_query = "list open mr"
+    print("\nTesting with full debug output:")
+    stream_graph_updates(test_query)
 
     print("Multi-LLM chat system initialized. Type 'quit' to exit.")
 
