@@ -40,7 +40,7 @@ def create_agent_executor(llm: BaseLanguageModel, toollist: List[Tool], system_p
         ("human", "{input}")
     ])
 
-    agent = create_openai_tools_agent(llm, tools, prompt)
+    agent = create_openai_tools_agent(llm, toollist, prompt)
 
     return AgentExecutor.from_agent_and_tools(
         agent=agent,
@@ -124,42 +124,54 @@ def create_gitlab_agent(llm: BaseLanguageModel) -> AgentExecutor:
         verbose=True
     )
 
-
-# Update GitLabNode
 class GitLabNode:
     """Node for handling GitLab-related operations."""
 
     def __init__(self, llm: BaseLanguageModel):
         self.agent = create_gitlab_agent(llm)
+        self.tools = {tool.name: tool for tool in gitlab_tools}
         print("GitLabNode initialized with new agent configuration")
 
     def process_state(self, state: State) -> dict:
-        """Process GitLab-related queries using the agent executor."""
+        """Process GitLab-related queries using the appropriate tool."""
         try:
             last_message = state["messages"][-1]
             content = last_message.content if hasattr(last_message, 'content') else str(last_message)
-
-            # Map common queries to specific tools
             content_lower = content.lower()
-            if "commit" in content_lower:
-                tool_name = "list_commits"
-            elif "merge" in content_lower:
-                tool_name = "list_merge_requests"
-            elif "branch" in content_lower:
-                tool_name = "list_branches"
-            elif "issue" in content_lower:
-                tool_name = "list_issues"
-            else:
-                return {"messages": [AIMessage(
-                    content="Please specify what GitLab information you want to retrieve (commits, merge requests, branches, or issues)")]}
 
-            # Execute the appropriate tool
-            for tool in gitlab_tools:
-                if tool.name == tool_name:
-                    result = tool.func("")
-                    return {"messages": [AIMessage(content=f"GitLab {tool_name} result:\n{result}")]}
+            # Map queries to specific tools and format inputs appropriately
+            if "show" in content_lower or "list" in content_lower:
+                if "issue" in content_lower:
+                    return self._execute_tool("list_issues", "")
+                elif "detail" in content_lower and "issue" in content_lower:
+                    issue_number = self._extract_issue_number(content)
+                    return self._execute_tool("get_issue", str(issue_number))
+            elif "comment" in content_lower and "issue" in content_lower:
+                issue_number = self._extract_issue_number(content)
+                comment_text = self._extract_comment_text(content)
+                formatted_input = f"{issue_number}\n\n{comment_text}"
+                return self._execute_tool("comment_on_issue", formatted_input)
+            elif "create" in content_lower:
+                if "file" in content_lower:
+                    file_path, content = self._extract_file_info(content)
+                    formatted_input = f"{file_path}\n{content}"
+                    return self._execute_tool("create_file", formatted_input)
+                elif "pull request" in content_lower or "pr" in content_lower:
+                    title, body = self._extract_pr_info(content)
+                    formatted_input = f"{title}\n{body}"
+                    return self._execute_tool("create_pull_request", formatted_input)
+            elif "read" in content_lower:
+                file_path = self._extract_file_path(content)
+                return self._execute_tool("read_file", file_path)
+            elif "update" in content_lower:
+                file_path, old_content, new_content = self._extract_update_info(content)
+                formatted_input = f"{file_path}\nOLD <<<<\n{old_content}\n>>>> OLD\nNEW <<<<\n{new_content}\n>>>> NEW"
+                return self._execute_tool("update_file", formatted_input)
+            elif "delete" in content_lower:
+                file_path = self._extract_file_path(content)
+                return self._execute_tool("delete_file", file_path)
 
-            return {"messages": [AIMessage(content="No matching GitLab operation found.")]}
+            return {"messages": [AIMessage(content="Please specify a valid GitLab operation (list issues, create file, etc.)")]}
 
         except Exception as ex:
             error_msg = f"Error in GitLabNode processing: {type(ex).__name__}: {str(ex)}"
@@ -167,6 +179,66 @@ class GitLabNode:
             import traceback
             traceback.print_exc()
             return {"messages": [AIMessage(content=f"Error processing GitLab request:\n{error_msg}")]}
+
+    def _execute_tool(self, tool_name: str, tool_input: str) -> dict:
+        """Execute a specific GitLab tool with the given input."""
+        if tool_name in self.tools:
+            result = self.tools[tool_name].func(tool_input)
+            return {"messages": [AIMessage(content=f"GitLab {tool_name} result:\n{result}")]}
+        return {"messages": [AIMessage(content="No matching GitLab operation found.")]}
+
+    def _extract_issue_number(self, content: str) -> int:
+        """Extract issue number from content."""
+        # Simple extraction - in practice, you'd want more robust parsing
+        try:
+            import re
+            numbers = re.findall(r'\d+', content)
+            return int(numbers[0]) if numbers else 1
+        except:
+            return 1
+
+    def _extract_comment_text(self, content: str) -> str:
+        """Extract comment text from content."""
+        try:
+            import re
+            match = re.search(r"saying\s+'([^']*)'", content)
+            return match.group(1) if match else "No comment text provided"
+        except:
+            return "No comment text provided"
+
+    def _extract_file_info(self, content: str) -> tuple:
+        """Extract file path and content from message."""
+        try:
+            import re
+            file_match = re.search(r"file\s+called\s+(\S+)", content)
+            file_path = file_match.group(1) if file_match else "README.md"
+            return file_path, "# Auto-generated content\n\nThis file was created via GitLab API."
+        except:
+            return "README.md", "# Auto-generated content"
+
+    def _extract_pr_info(self, content: str) -> tuple:
+        """Extract PR title and body from content."""
+        return "Automated PR", "This PR was created via GitLab API"
+
+    def _extract_file_path(self, content: str) -> str:
+        """Extract file path from content."""
+        try:
+            import re
+            match = re.search(r"(?:read|update|delete)\s+(?:the\s+)?(?:contents\s+of\s+)?(\S+)", content)
+            return match.group(1) if match else ""
+        except:
+            return ""
+
+    def _extract_update_info(self, content: str) -> tuple:
+        """Extract file path and update content information."""
+        try:
+            file_path = self._extract_file_path(content)
+            # In a real implementation, you'd want to fetch the current content
+            old_content = "Current content"
+            new_content = "Updated content"
+            return file_path, old_content, new_content
+        except:
+            return "", "", ""
 
 class CodeNode:
     """Node specifically for handling code-related queries with Deepseek."""
@@ -251,6 +323,8 @@ def stream_graph_updates(u_input: str):
         print(f"Full error details: ", ex.__dict__)  # Add more error details for debugging
 
 def load_env(file_path=".env"):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"The environment file {file_path} does not exist.")
     with open(file_path, "r") as file:
         for line in file:
             line = line.strip()
@@ -316,25 +390,83 @@ if __name__ == "__main__":
     # Initialize GitLab tools
     gitlab_tools = [
         Tool(
-            name="list_commits",
-            description="List recent commits in the repository",
-            func=lambda x: GitLabAction(mode="commits", name="list_commits", description="List commits").run("list")
-        ),
-        Tool(
-            name="list_merge_requests",
-            description="List open merge requests",
-            func=lambda x: GitLabAction(mode="merge_requests", name="list_merge_requests", description="List MRs").run(
-                "list")
-        ),
-        Tool(
-            name="list_branches",
-            description="List repository branches",
-            func=lambda x: GitLabAction(mode="branches", name="list_branches", description="List branches").run("list")
-        ),
-        Tool(
             name="list_issues",
-            description="List open issues",
-            func=lambda x: GitLabAction(mode="issues", name="list_issues", description="List issues").run("list")
+            description="List all open issues in the repository. Returns issue titles and numbers.",
+            func=lambda x: GitLabAction(
+                mode="get_issues",
+                name="list_issues",
+                description="List all open issues"
+            ).run("")
+        ),
+
+        Tool(
+            name="get_issue",
+            description="Get details about a specific issue including its title, body, and first 10 comments. Input should be an issue number.",
+            func=lambda x: GitLabAction(
+                mode="get_issue",
+                name="get_issue",
+                description="Get specific issue details"
+            ).run(x)
+        ),
+
+        Tool(
+            name="comment_on_issue",
+            description="Add a comment to a specific issue. Input format should be: 'issue_number\\n\\ncomment_text'",
+            func=lambda x: GitLabAction(
+                mode="comment_on_issue",
+                name="comment_on_issue",
+                description="Comment on an issue"
+            ).run(x)
+        ),
+
+        Tool(
+            name="create_file",
+            description="Create a new file in the repository. Input format should be: 'file_path\\nfile_contents'",
+            func=lambda x: GitLabAction(
+                mode="create_file",
+                name="create_file",
+                description="Create a new file"
+            ).run(x)
+        ),
+
+        Tool(
+            name="create_pull_request",
+            description="Create a new pull request. Input format should be: 'PR_title\\nPR_body'",
+            func=lambda x: GitLabAction(
+                mode="create_pull_request",
+                name="create_pull_request",
+                description="Create a pull request"
+            ).run(x)
+        ),
+
+        Tool(
+            name="read_file",
+            description="Read the contents of a file from the repository. Input should be the file path.",
+            func=lambda x: GitLabAction(
+                mode="read_file",
+                name="read_file",
+                description="Read file contents"
+            ).run(x)
+        ),
+
+        Tool(
+            name="update_file",
+            description="Update an existing file. Input format should be: 'file_path\\nOLD <<<<\\nold_content\\n>>>> OLD\\nNEW <<<<\\nnew_content\\n>>>> NEW'",
+            func=lambda x: GitLabAction(
+                mode="update_file",
+                name="update_file",
+                description="Update file contents"
+            ).run(x)
+        ),
+
+        Tool(
+            name="delete_file",
+            description="Delete a file from the repository. Input should be the file path.",
+            func=lambda x: GitLabAction(
+                mode="delete_file",
+                name="delete_file",
+                description="Delete a file"
+            ).run(x)
         )
     ]
 
@@ -456,10 +588,21 @@ if __name__ == "__main__":
 
     # Test specific GitLab operations
     test_queries = [
-        "list commits",
-        "show open merge requests",
-        "list branches",
-        "show recent issues"
+        "show all open issues",  # Tests get_issues mode
+        # "get details for issue 1",  # Tests get_issue mode
+        # "add a comment to issue 2 saying 'Working on this'",  # Tests comment_on_issue mode
+        # "create a new file called README.md with some content",  # Tests create_file mode
+        # "create a pull request to merge feature branch",  # Tests create_pull_request mode
+        # "read the contents of config.json",  # Tests read_file mode
+        # "update the LICENSE file to add current year",  # Tests update_file mode
+        # "delete the temporary.txt file",  # Tests delete_file mode
+        # "get details for issue number 123",
+        # "add a comment to issue 45 saying 'Working on this task'",
+        # "create a file called docs/README.md with initial documentation",
+        # "create a pull request titled 'Feature Update' for the feature branch",
+        # "read the contents of src/config.json",
+        # "update the LICENSE file to change 2023 to 2024",
+        # "delete the temporary/test.txt file"
     ]
 
     for query in test_queries:
