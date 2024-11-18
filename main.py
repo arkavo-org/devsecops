@@ -18,6 +18,10 @@ from langgraph.graph import StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
 from langgraph.store.memory import InMemoryStore
 
+from tool_docker import create_docker_tools
+from tool_graph import create_graph_visualization_tool
+
+
 class QueryType(Enum):
     CODE = "code"
     CHAT_MISTRAL = "chat_mistral"
@@ -83,6 +87,18 @@ def detect_query_type(state: State) -> str:
 
     if any(keyword in content for keyword in gitlab_keywords):
         return QueryType.GITLAB.value
+
+    # Define system/ops related keywords that should NOT go to the code model
+    ops_keywords = [
+        "docker", "kubernetes", "k8s", "logs", "monitoring", "deployment",
+        "container", "pod", "service", "cluster", "node", "volume",
+        "namespace", "config", "configuration", "system", "environment",
+        "infrastructure", "server", "cloud", "aws", "azure", "gcp"
+    ]
+
+    # Check for ops-related content first
+    if any(keyword in content for keyword in ops_keywords):
+        return QueryType.CHAT_MISTRAL.value  # Route to Haiku for better ops handling
 
     code_keywords = [
         "code", "function", "programming", "debug", "error",
@@ -296,20 +312,20 @@ def stream_graph_updates(u_input: str):
     """Stream graph updates with proper checkpointing configuration."""
     try:
         print("\n=== Stream Graph Updates ===")
-        print(f"stream_graph_updates {u_input}")
+        # print(f"stream_graph_updates {u_input}")
         # Initial state
         initial_state = {
             "messages": [HumanMessage(content=u_input)],  # Changed from tuple to HumanMessage
             "query_type": "",
         }
-        print(f"initial_state {initial_state}")
+        # print(f"initial_state {initial_state}")
         config = {
             "configurable": {
                 "thread_id": str(uuid4()),
                 "checkpoint_ns": "chat_interaction"
             }
         }
-        print(f"config {config}")
+        # print(f"config {config}")
         print("Starting graph stream...")
         for event in graph.stream(initial_state, config=config):
             print(f"Processing event: {event}")
@@ -479,16 +495,39 @@ if __name__ == "__main__":
         )
     ]
 
-    tools = [search_tool] + gitlab_tools
+    # Add graph visualization tool
+    graph_viz_tool = create_graph_visualization_tool()
+    # docker log
+    docker_tools = create_docker_tools()
+    # Combine all tools
+    tools = [search_tool, graph_viz_tool] + gitlab_tools + docker_tools
+    for tool in tools:
+        print(f"Tool name: {tool.name}")
 
     # Create agent executors with specific prompts
+    docker_prompt = """When handling Docker-related queries:
+    1. For listing containers, use the docker_ps tool
+    2. For analyzing logs, use the docker_log_analysis tool with parameters:
+       - container_name: Name of the container
+       - time_range_minutes: How far back to look (default: 60)
+       - filters: Any specific terms to filter for
+       - max_lines: Maximum number of lines to analyze (default: 1000)
+    3. Provide clear explanations of the results"""
+
     haiku_prompt = """You are a helpful AI assistant using Claude Haiku. 
     Use the available tools when needed to provide accurate and up-to-date information.
+    You can use the visualize_graph tool to create visual representations of graph structures.
+    You can use the gitlab tool to interact with GitLab.
     Always respond in a clear and concise manner."""
 
     mistral_prompt = """You are a helpful AI assistant using Mistral. 
     Use the available tools when needed to provide accurate and up-to-date information.
+    You can use the visualize_graph tool to create visual representations of graph structures.
+    You can use the gitlab tool to interact with GitLab.
     Always respond in a clear and concise manner."""
+
+    haiku_prompt += "\n" + docker_prompt
+    mistral_prompt += "\n" + docker_prompt
 
     deepseek_prompt = """You are a code-focused AI assistant using Deepseek Coder.
     Analyze code, fix bugs, and provide programming assistance. Use tools when needed.
@@ -583,38 +622,40 @@ if __name__ == "__main__":
     )
     print("Graph compilation complete")
     # Test specific GitLab operations
-    test_queries = [
-        "show all open issues",  # Tests get_issues mode
-        # "get details for issue 1",  # Tests get_issue mode
-        # "add a comment to issue 2 saying 'Working on this'",  # Tests comment_on_issue mode
-        # "create a new file called README.md with some content",  # Tests create_file mode
-        # "create a pull request to merge feature branch",  # Tests create_pull_request mode
-        # "read the contents of config.json",  # Tests read_file mode
-        # "update the LICENSE file to add current year",  # Tests update_file mode
-        # "delete the temporary.txt file",  # Tests delete_file mode
-        # "get details for issue number 123",
-        # "add a comment to issue 45 saying 'Working on this task'",
-        # "create a file called docs/README.md with initial documentation",
-        # "create a pull request titled 'Feature Update' for the feature branch",
-        # "read the contents of src/config.json",
-        # "update the LICENSE file to change 2023 to 2024",
-        # "delete the temporary/test.txt file"
-    ]
+    # test_queries = [
+    #     "show all open issues",  # Tests get_issues mode
+    #     # "get details for issue 1",  # Tests get_issue mode
+    #     # "add a comment to issue 2 saying 'Working on this'",  # Tests comment_on_issue mode
+    #     # "create a new file called README.md with some content",  # Tests create_file mode
+    #     # "create a pull request to merge feature branch",  # Tests create_pull_request mode
+    #     # "read the contents of config.json",  # Tests read_file mode
+    #     # "update the LICENSE file to add current year",  # Tests update_file mode
+    #     # "delete the temporary.txt file",  # Tests delete_file mode
+    #     # "get details for issue number 123",
+    #     # "add a comment to issue 45 saying 'Working on this task'",
+    #     # "create a file called docs/README.md with initial documentation",
+    #     # "create a pull request titled 'Feature Update' for the feature branch",
+    #     # "read the contents of src/config.json",
+    #     # "update the LICENSE file to change 2023 to 2024",
+    #     # "delete the temporary/test.txt file"
+    # ]
+    # for query in test_queries:
+    #     print(f"\nTesting query: {query}")
+    #     state = {
+    #         "messages": [HumanMessage(content=query)]
+    #     }
+    #     try:
+    #         result = gitlab_node.process_state(state)
+    #         print(f"Result: {result}")
+    #     except Exception as e:
+    #         print(f"Error: {e}")
 
-    for query in test_queries:
-        print(f"\nTesting query: {query}")
-        state = {
-            "messages": [HumanMessage(content=query)]
-        }
-        try:
-            result = gitlab_node.process_state(state)
-            print(f"Result: {result}")
-        except Exception as e:
-            print(f"Error: {e}")
-
-    test_query = "list open mr"
-    print("\nTesting with full debug output:")
-    stream_graph_updates(test_query)
+    # test_query = "list open mr"
+    # print("\nTesting with full debug output:")
+    # stream_graph_updates(test_query)
+    # LangGraph visualization
+    mermaid_diagram = graph_viz_tool.func(graph_builder, "Current System Structure")
+    print(mermaid_diagram)
 
     print("Multi-LLM chat system initialized. Type 'quit' to exit.")
 

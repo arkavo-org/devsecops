@@ -11,6 +11,13 @@ GITLAB_URL=http://gitlab.localhost
 GITLAB_REPOSITORY=def
 ```
 
+### Ollama
+
+```shell
+ollama install mistral
+ollama install deepseek-coder-v2
+```
+
 ### LangGraph
 
 ```shell
