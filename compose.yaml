@@ -1,0 +1,48 @@
+services:
+  gitlab:
+    image: 'gitlab/gitlab-ce:latest'
+    container_name: gitlab
+    restart: no
+    hostname: 'gitlab.localhost'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://gitlab.localhost'
+        # Puma settings
+        puma['worker_processes'] = 2
+        puma['worker_timeout'] = 60
+        puma['min_threads'] = 1
+        puma['max_threads'] = 16
+        # PostgreSQL settings
+        postgresql['shared_buffers'] = "256MB"
+        # Redis settings
+        redis['maxmemory'] = "256mb"
+        redis['maxmemory_policy'] = "allkeys-lru"
+        # Reduce Sidekiq concurrency
+        sidekiq['concurrency'] = 15
+        # Configure SSH settings
+        gitlab_rails['gitlab_shell_ssh_port'] = 2224
+        # Disable some features
+        gitlab_rails['gitlab_default_projects_features_container_registry'] = false
+        prometheus_monitoring['enable'] = false
+        # Disable nginx proxy_request_buffering
+        nginx['proxy_request_buffering'] = "off"
+    ports:
+      - '80:80'
+      - '443:443'
+      - '2224:22'
+    volumes:
+      - gitlab_config:/etc/gitlab
+      - gitlab_logs:/var/log/gitlab
+      - gitlab_data:/var/opt/gitlab
+    shm_size: '256m'
+    healthcheck:
+      test: ["CMD", "/opt/gitlab/bin/gitlab-healthcheck", "--fail-on-error"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  gitlab_config:
+  gitlab_logs:
+  gitlab_data:
