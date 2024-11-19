@@ -24,7 +24,7 @@ from tool_graph import create_graph_visualization_tool
 
 class QueryType(Enum):
     CODE = "code"
-    CHAT_MISTRAL = "chat_mistral"
+    CHAT_LLAMA = "chat_llama"
     CHAT_HAIKU = "chat_haiku"
     TOOLS = "tools"
     GITLAB = "gitlab"
@@ -65,7 +65,7 @@ def detect_query_type(state: State) -> str:
         messages = state.get("messages", [])
 
     if not messages:
-        return QueryType.CHAT_MISTRAL.value
+        return QueryType.CHAT_LLAMA.value  # Changed from CHAT_MISTRAL
 
     last_message = messages[-1]
     if isinstance(last_message, tuple):
@@ -98,7 +98,7 @@ def detect_query_type(state: State) -> str:
 
     # Check for ops-related content first
     if any(keyword in content for keyword in ops_keywords):
-        return QueryType.CHAT_MISTRAL.value  # Route to Haiku for better ops handling
+        return QueryType.CHAT_LLAMA.value  # Changed from CHAT_MISTRAL
 
     code_keywords = [
         "code", "function", "programming", "debug", "error",
@@ -110,7 +110,8 @@ def detect_query_type(state: State) -> str:
         return QueryType.CODE.value
 
     message_count = len([m for m in messages if isinstance(m, (tuple, HumanMessage))])
-    return QueryType.CHAT_HAIKU.value if message_count % 2 == 0 else QueryType.CHAT_MISTRAL.value
+    return QueryType.CHAT_HAIKU.value if message_count % 2 == 0 else QueryType.CHAT_LLAMA.value  # Changed from CHAT_MISTRAL
+
 
 
 def create_gitlab_agent(llm: BaseLanguageModel) -> AgentExecutor:
@@ -401,7 +402,7 @@ if __name__ == "__main__":
     # Initialize LLMs
     print("Initializing language models...")
     haiku = ChatAnthropic(model="claude-3-5-haiku-20241022")
-    mistral = ChatOllama(model="mistral")
+    llama = ChatOllama(model="llama3.2")
     deepseek = ChatOllama(model="deepseek-coder-v2")
 
     # Initialize tools
@@ -520,14 +521,14 @@ if __name__ == "__main__":
     You can use the gitlab tool to interact with GitLab.
     Always respond in a clear and concise manner."""
 
-    mistral_prompt = """You are a helpful AI assistant using Mistral. 
+    llama_prompt = """You are a helpful AI assistant using Llama 3.2.  # Changed from Mistral
     Use the available tools when needed to provide accurate and up-to-date information.
     You can use the visualize_graph tool to create visual representations of graph structures.
     You can use the gitlab tool to interact with GitLab.
     Always respond in a clear and concise manner."""
 
+    llama_prompt += "\n" + docker_prompt
     haiku_prompt += "\n" + docker_prompt
-    mistral_prompt += "\n" + docker_prompt
 
     deepseek_prompt = """You are a code-focused AI assistant using Deepseek Coder.
     Analyze code, fix bugs, and provide programming assistance. Use tools when needed.
@@ -535,29 +536,30 @@ if __name__ == "__main__":
 
     # Create agents with simplified prompts
     haiku_agent = create_agent_executor(haiku, tools, haiku_prompt)
-    mistral_agent = create_agent_executor(mistral, tools, mistral_prompt)
+    llama_agent = create_agent_executor(llama, tools, llama_prompt)  # Changed from mistral_agent
     gitlab_agent = create_agent_executor(
-        llm=haiku,  # Using Claude Haiku for GitLab operations
+        llm=haiku,
         toollist=gitlab_tools,
         system_prompt="""You are a GitLab operations specialist. 
-        When handling GitLab requests:
-        1. Understand the user's intent
-        2. Select the appropriate GitLab tool
-        3. Execute the operation with precise parameters
-        4. Format the response clearly
+         When handling GitLab requests:
+         1. Understand the user's intent
+         2. Select the appropriate GitLab tool
+         3. Execute the operation with precise parameters
+         4. Format the response clearly
 
-        Available tools:
-        - gitlab_issues: Manage GitLab issues
-        - gitlab_merge_requests: Handle merge requests
-        - gitlab_commits: View and manage commits
-        - gitlab_branches: Handle branch operations
+         Available tools:
+         - gitlab_issues: Manage GitLab issues
+         - gitlab_merge_requests: Handle merge requests
+         - gitlab_commits: View and manage commits
+         - gitlab_branches: Handle branch operations
 
-        Always provide clear feedback about what operation was performed and its result."""
+         Always provide clear feedback about what operation was performed and its result."""
     )
+
     # Create nodes
     print("Creating nodes...")
     haiku_node = ChatNode(haiku_agent)
-    mistral_node = ChatNode(mistral_agent)
+    llama_node = ChatNode(llama_agent)  # Changed from mistral_node
     deepseek_node = CodeNode(deepseek)
     tool_node = ToolNode(tools=tools)
     gitlab_node = GitLabNode(haiku)
@@ -569,7 +571,7 @@ if __name__ == "__main__":
     # Add nodes
     nodes = {
         "haiku": haiku_node,
-        "mistral": mistral_node,
+        "llama": llama_node,  # Changed from "mistral"
         "deepseek": deepseek_node,
         "tools": tool_node,
         "gitlab": gitlab_node
@@ -589,7 +591,7 @@ if __name__ == "__main__":
     # Update edges
     edges = {
         QueryType.CODE.value: "deepseek",
-        QueryType.CHAT_MISTRAL.value: "mistral",
+        QueryType.CHAT_LLAMA.value: "llama",
         QueryType.CHAT_HAIKU.value: "haiku",
         QueryType.TOOLS.value: "tools",
         QueryType.GITLAB.value: "gitlab",
