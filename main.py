@@ -1,3 +1,4 @@
+import json
 import os
 from enum import Enum
 from typing import TypedDict, Annotated, List
@@ -20,6 +21,7 @@ from langgraph.store.memory import InMemoryStore
 
 from tool_docker import create_docker_tools
 from tool_graph import create_graph_visualization_tool
+from tool_openbao import create_secrets_tools
 
 
 class QueryType(Enum):
@@ -28,6 +30,7 @@ class QueryType(Enum):
     CHAT_HAIKU = "chat_haiku"
     TOOLS = "tools"
     GITLAB = "gitlab"
+    SECRETS = "secrets"
     END = "end"
 
 
@@ -79,6 +82,15 @@ def detect_query_type(state: State) -> str:
 
     content = content.lower()
 
+    # Check for secrets management keywords first
+    secrets_keywords = [
+        "secret", "vault", "credential", "password", "token", "key",
+        "certificate", "cert", "openbao", "bao", "kv"
+    ]
+
+    if any(keyword in content for keyword in secrets_keywords):
+        return QueryType.SECRETS.value
+
     # Add GitLab-specific keywords
     gitlab_keywords = [
         "gitlab", "merge request", "mr", "pipeline", "ci/cd",
@@ -111,8 +123,6 @@ def detect_query_type(state: State) -> str:
 
     message_count = len([m for m in messages if isinstance(m, (tuple, HumanMessage))])
     return QueryType.CHAT_HAIKU.value if message_count % 2 == 0 else QueryType.CHAT_LLAMA.value  # Changed from CHAT_MISTRAL
-
-
 
 def create_gitlab_agent(llm: BaseLanguageModel) -> AgentExecutor:
     """Create a GitLab-specific agent with proper tool configuration."""
@@ -285,6 +295,29 @@ class CodeNode:
             return {"messages": [AIMessage(
                 content="I encountered an error processing your code request. Could you please rephrase or try again?")]}
 
+
+class SecretsNode:
+    """Node for handling secrets management operations."""
+
+    def __init__(self, agent: AgentExecutor):
+        self.agent = agent
+
+    def process_state(self, state: State) -> dict:
+        """Process secrets management queries using the agent executor."""
+        try:
+            last_message = state["messages"][-1]
+            content = last_message.content if hasattr(last_message, 'content') else str(last_message)
+
+            response = self.agent.invoke({"input": content})
+            return {"messages": [AIMessage(content=response["output"])]}
+        except json.JSONDecodeError as e:
+            error_msg = f"Invalid secret format: {str(e)}. Please use the format '/path key value' or provide valid JSON."
+            print(error_msg)
+            return {"messages": [AIMessage(content=error_msg)]}
+        except Exception as ex:
+            error_msg = f"Error processing secrets request: {str(ex)}"
+            print(error_msg)
+            return {"messages": [AIMessage(content=error_msg)]}
 
 class ChatNode:
     """Node for handling chat queries with tools."""
@@ -500,6 +533,7 @@ if __name__ == "__main__":
     graph_viz_tool = create_graph_visualization_tool()
     # docker log
     docker_tools = create_docker_tools()
+    secrets_tools = create_secrets_tools()
     # Combine all tools
     tools = [search_tool, graph_viz_tool] + gitlab_tools + docker_tools
     for tool in tools:
@@ -534,9 +568,28 @@ if __name__ == "__main__":
     Analyze code, fix bugs, and provide programming assistance. Use tools when needed.
     Always respond with clean, well-documented code and clear explanations."""
 
+    secrets_prompt = """When handling secrets and credentials:
+    1. Use appropriate tools to manage secrets securely
+    2. Never expose sensitive information in responses
+    3. Verify paths and data formats before operations
+    4. Available operations:
+       - list_secrets: List secrets at a path
+       - read_secret: Read a specific secret
+       - write_secret: Store a new secret
+       - delete_secret: Remove a secret
+    5. Always confirm operations before execution
+    6. Handle errors gracefully and securely"""
+
+    llama_prompt += "\n" + secrets_prompt
+
     # Create agents with simplified prompts
     haiku_agent = create_agent_executor(haiku, tools, haiku_prompt)
-    llama_agent = create_agent_executor(llama, tools, llama_prompt)  # Changed from mistral_agent
+    llama_agent = create_agent_executor(llama, tools, llama_prompt)
+    secrets_agent = create_agent_executor(
+        llm=llama,
+        toollist=secrets_tools,
+        system_prompt=secrets_prompt
+    )
     gitlab_agent = create_agent_executor(
         llm=haiku,
         toollist=gitlab_tools,
@@ -563,6 +616,7 @@ if __name__ == "__main__":
     deepseek_node = CodeNode(deepseek)
     tool_node = ToolNode(tools=tools)
     gitlab_node = GitLabNode(haiku)
+    secrets_node = SecretsNode(secrets_agent)
 
     # Build graph
     print("Setting up graph...")
@@ -574,7 +628,8 @@ if __name__ == "__main__":
         "llama": llama_node,  # Changed from "mistral"
         "deepseek": deepseek_node,
         "tools": tool_node,
-        "gitlab": gitlab_node
+        "gitlab": gitlab_node,
+        "secrets": secrets_node
     }
 
     # Add each node with logging wrapper
@@ -595,6 +650,7 @@ if __name__ == "__main__":
         QueryType.CHAT_HAIKU.value: "haiku",
         QueryType.TOOLS.value: "tools",
         QueryType.GITLAB.value: "gitlab",
+        QueryType.SECRETS.value: "secrets",
         QueryType.END.value: END
     }
 

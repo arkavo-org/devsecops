@@ -1,19 +1,12 @@
 import json
-import logging
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 import requests
 from langchain.tools import BaseTool
+from langchain_core.tools import Tool
 from pydantic import BaseModel, Field
-
-from main import load_env
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
 
 class Secret(BaseModel):
     """Model for secret data."""
@@ -76,7 +69,7 @@ class OpenBaoTool(BaseTool):
                 return response.json()
             return {}  # Return empty dict for no content
         except requests.exceptions.RequestException as e:
-            logger.error(f"API request failed: {str(e)}")
+            print(f"API request failed: {str(e)}")
             raise
 
 
@@ -140,7 +133,80 @@ class KVTool(OpenBaoTool):
             return f"Error: {str(e)}"
 
 
+def create_secrets_tools() -> List[Tool]:
+    """Create tools for secrets management using OpenBao.
+    Returns:
+        List[Tool]: List of LangChain tools for secrets management
+    """
+    api_url: str = os.environ.get('OPENBAO_URL')
+    token: str = os.environ.get('OPENBAO_TOKEN')
+    kv_tool = KVTool(api_url=api_url, token=token)
+
+    def write_secret_handler(input_str: str) -> Dict[str, Any]:
+        """Handle write_secret requests with proper parsing of path and data."""
+        try:
+            # If input is already in JSON format, parse it
+            if input_str.startswith('{'):
+                data = json.loads(input_str)
+                return kv_tool.write_secret(data['path'], data['data'])
+
+            # Otherwise, parse natural language input
+            # Expected format: "path value_key value"
+            parts = input_str.split()
+            if len(parts) < 3:
+                raise ValueError("Input must include path, key, and value")
+
+            path = parts[0]
+            key = parts[1]
+            value = ' '.join(parts[2:])  # Join remaining parts as value
+
+            data = {key: value}
+            return kv_tool.write_secret(path, data)
+
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error: {str(e)}")
+            raise ValueError(f"Invalid JSON format: {str(e)}")
+        except Exception as e:
+            print(f"Error in write_secret_handler: {str(e)}")
+            raise
+
+    return [
+        Tool(
+            name="list_secrets",
+            func=lambda path: kv_tool.list_secrets(path),
+            description="List secrets at the specified path. Usage: provide the path to list secrets from."
+        ),
+        Tool(
+            name="read_secret",
+            func=lambda path: kv_tool.read_secret(path),
+            description="Read a secret from the specified path. Usage: provide the complete path to the secret."
+        ),
+        Tool(
+            name="write_secret",
+            func=write_secret_handler,
+            description="""Write a secret to the specified path. Two formats accepted:
+            1. JSON format: {"path": "/secret/path", "data": {"key": "value"}}
+            2. Simple format: "/secret/path key value" """
+        ),
+        Tool(
+            name="delete_secret",
+            func=lambda path: kv_tool.delete_secret(path),
+            description="Delete a secret at the specified path. Usage: provide the path to the secret to delete."
+        )
+    ]
+
+
 if __name__ == "__main__":
+    def load_env(file_path=".env"):
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"The environment file {file_path} does not exist.")
+        with open(file_path, "r") as file:
+            for line in file:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                key, value = line.split('=', 1)
+                os.environ[key.strip()] = value.strip()
     load_env()
     # Configuration
     API_URL: str = os.environ.get('OPENBAO_URL')
@@ -196,5 +262,5 @@ if __name__ == "__main__":
         print("\nOperations completed successfully")
 
     except Exception as e:
-        logger.error(f"Error in main: {str(e)}")
+        print(f"Error in main: {str(e)}")
         raise
