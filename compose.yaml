@@ -41,8 +41,38 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-
+  openbao:
+    image: openbao/openbao:latest # Replace with the correct OpenBao image if available
+    container_name: openbao
+    ports:
+      - "8200:8200" # Vault API port
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root # Development root token
+      VAULT_ADDR: http://0.0.0.0:8200
+      BAO_ADDR: http://0.0.0.0:8200
+      BAO_API_ADDR: http://gitlab.localhost:8200
+      VAULT_BACKEND: postgresql
+      VAULT_STORAGE_TYPE: postgresql # Specify the storage backend
+      VAULT_LOG_LEVEL: debug
+      VAULT_POSTGRESQL_CONNECTION: postgres://openbao:openbao_secret@postgres:5432/openbao
+    volumes:
+      - openbao_data:/data # Persistent data storage
+    depends_on:
+      - postgres
+    restart: unless-stopped
+  postgres:
+    image: postgres:15
+    container_name: openbao-postgres
+    environment:
+      POSTGRES_USER: openbao
+      POSTGRES_PASSWORD: openbao_secret
+      POSTGRES_DB: openbao
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
 volumes:
   gitlab_config:
   gitlab_logs:
   gitlab_data:
+  postgres_data:
+  openbao_data:

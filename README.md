@@ -9,12 +9,14 @@ DevSecOps LangGraph
 ANTHROPIC_API_KEY=abc
 GITLAB_URL=http://gitlab.localhost
 GITLAB_REPOSITORY=def
+OPENBAO_URL=http://gitlab.localhost:8020
+OPENBAO_TOKEN=ghi
 ```
 
 ### Ollama
 
 ```shell
-ollama install mistral
+ollama install llama3.2
 ollama install deepseek-coder-v2
 ```
 
