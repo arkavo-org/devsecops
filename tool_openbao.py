@@ -43,8 +43,7 @@ class OpenBaoTool(BaseTool):
         """Make a request to the OpenBao API."""
         headers = {
             "X-Vault-Token": self.token,
-            "Content-Type": "application/json",
-            "X-Vault-Request": "true"
+            "Content-Type": "application/json"
         }
 
         url = f"{self.api_url.rstrip('/')}/{endpoint.lstrip('/')}"

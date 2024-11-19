@@ -75,6 +75,8 @@ def detect_query_type(state: State) -> str:
         content = last_message[1]
     elif isinstance(last_message, HumanMessage):
         content = last_message.content
+    elif isinstance(last_message, AIMessage):
+        return QueryType.END.value
     else:
         if hasattr(last_message, "tool_calls") and len(last_message.tool_calls) > 0:
             return QueryType.TOOLS.value
