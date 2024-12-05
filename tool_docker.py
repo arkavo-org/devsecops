@@ -47,22 +47,36 @@ class DockerTools:
             "For Colima, run: 'colima start' and try again."
         )
 
-    def list_containers(self, show_all: bool = False) -> str:
-        """List Docker containers."""
+    def list_containers(self, show_all: Any = True) -> str:
+        """
+        List Docker containers with support for both string and boolean show_all parameter.
+
+        Args:
+            show_all: Can be boolean True/False or string 'True'/'False'
+        """
         try:
-            containers = self.client.containers.list(all=show_all)
+            # Handle both string and boolean input
+            if isinstance(show_all, str):
+                show_all_bool = show_all.lower() == 'true'
+            else:
+                show_all_bool = bool(show_all)
+
+            # Try to connect and list containers
+            containers = self.client.containers.list(all=show_all_bool)
 
             if not containers:
-                return "No containers found"
+                return "SYSTEM STATUS: No Docker containers found. Docker daemon is running but no containers exist."
 
             result = "CONTAINER ID\tIMAGE\tSTATUS\tNAMES\n"
             for container in containers:
                 result += f"{container.short_id}\t{container.image.tags[0] if container.image.tags else 'none'}\t{container.status}\t{container.name}\n"
-
             return result
 
+        except docker.errors.APIError as e:
+            return f"SYSTEM ERROR: Docker daemon not responding. Error: {str(e)}"
         except Exception as e:
-            return f"Error listing containers: {str(e)}"
+            return f"SYSTEM ERROR: {str(e)}"
+
 
     def _extract_log_patterns(self, logs: str) -> Dict[str, Any]:
         """Analyze logs for common patterns and anomalies."""

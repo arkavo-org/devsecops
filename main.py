@@ -53,7 +53,7 @@ def create_agent_executor(llm: BaseLanguageModel, toollist: List[Tool], system_p
         agent=agent,
         tools=toollist,
         handle_parsing_errors=True,
-        max_iterations=3,
+        max_iterations=1,
         verbose=True
     )
 
@@ -321,6 +321,7 @@ class SecretsNode:
             print(error_msg)
             return {"messages": [AIMessage(content=error_msg)]}
 
+
 class ChatNode:
     """Node for handling chat queries with tools."""
 
@@ -331,18 +332,40 @@ class ChatNode:
         """Process chat queries using the agent executor."""
         try:
             last_message = state["messages"][-1]
-            if isinstance(last_message, tuple):
-                content = last_message[1]
-            else:
-                content = last_message.content
+            content = last_message.content if hasattr(last_message, 'content') else str(last_message)
 
             response = self.agent.invoke({"input": content})
-            return {"messages": [AIMessage(content=response["output"])]}
+            output = response["output"]
+
+            # Check for definitive system responses
+            if output.startswith("SYSTEM STATUS:") or output.startswith("SYSTEM ERROR:"):
+                # Create a more informative response
+                if "No Docker containers found" in output:
+                    message = ("No Docker containers are currently running or exist. To fix this:\n"
+                               "1. Check if Docker daemon is running\n"
+                               "2. Try starting some containers\n"
+                               "3. Run 'docker ps -a' manually to verify")
+                else:
+                    message = output
+
+                return {
+                    "messages": [AIMessage(content=message)],
+                    "query_type": QueryType.END.value  # Force end of processing
+                }
+
+            return {"messages": [AIMessage(content=output)]}
+
         except Exception as ex:
             print(f"Error in ChatNode processing: {str(ex)}")
-            return {"messages": [AIMessage(
-                content="I encountered an error processing your request. Could you please rephrase or try again?")]}
+            return {
+                "messages": [AIMessage(
+                    content="I encountered an error processing your request. Could you please rephrase or try again?")],
+                "query_type": QueryType.END.value
+            }
 
+def new_function():
+    """Placeholder for a new function."""
+    pass
 
 def stream_graph_updates(u_input: str):
     """Stream graph updates with proper checkpointing configuration."""
@@ -362,13 +385,13 @@ def stream_graph_updates(u_input: str):
             }
         }
         # print(f"config {config}")
-        print("Starting graph stream...")
+        # print("Starting graph stream...")
         for event in graph.stream(initial_state, config=config):
-            print(f"Processing event: {event}")
+            # print(f"Processing event: {event}")
             for value in event.values():
                 if "messages" in value:
                     message = value["messages"][-1]
-                    print(f"Message type: {type(message)}")
+                    # print(f"Message type: {type(message)}")
                     if isinstance(message, (HumanMessage, SystemMessage, AIMessage)):
                         print("Assistant:", message.content)
                     elif isinstance(message, tuple):
@@ -415,10 +438,10 @@ def create_gitlab_tool(name: str, description: str, mode: str) -> Tool:
 
 def create_node_with_logging(node_name, node):
     def logged_process(state):
-        print(f"Processing in {node_name} node")
+        # print(f"Processing in {node_name} node")
         try:
             result = node.process_state(state)
-            print(f"{node_name} processing result: {result}")
+            # print(f"{node_name} processing result: {result}")
             return result
         except Exception as e:
             print(f"Error in {node_name} node: {str(e)}")
@@ -543,13 +566,22 @@ if __name__ == "__main__":
 
     # Create agent executors with specific prompts
     docker_prompt = """When handling Docker-related queries:
-    1. For listing containers, use the docker_ps tool
-    2. For analyzing logs, use the docker_log_analysis tool with parameters:
-       - container_name: Name of the container
-       - time_range_minutes: How far back to look (default: 60)
-       - filters: Any specific terms to filter for
-       - max_lines: Maximum number of lines to analyze (default: 1000)
-    3. Provide clear explanations of the results"""
+
+    1. Pay attention to response prefixes:
+       - "SYSTEM STATUS:" indicates a definitive system state - do not retry
+       - "SYSTEM ERROR:" indicates a technical error - do not retry
+
+    2. For container listing:
+       - When you see "No Docker containers found" - accept this as the final state
+       - Explain to the user what this means and what they can do next
+
+    3. Never retry an operation that returns a SYSTEM STATUS or SYSTEM ERROR prefix
+
+    4. For container operations:
+       - First verify Docker is running and containers exist
+       - Provide clear next steps for users if no containers are found
+
+    Remember: A "no containers" state is a valid system state, not an error condition requiring retry."""
 
     haiku_prompt = """You are a helpful AI assistant using Claude Haiku. 
     Use the available tools when needed to provide accurate and up-to-date information.

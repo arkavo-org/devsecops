@@ -1,6 +1,10 @@
 # DevSecOps
 DevSecOps LangGraph
 
+## Prerequisites
+
+- `uv` https://docs.astral.sh/uv/getting-started/installation/
+
 ## Setup
 
 ### .env
@@ -23,20 +27,20 @@ ollama install deepseek-coder-v2
 ### LangGraph
 
 ```shell
-pip install langgraph langsmith langchain_anthropic
+uv add langgraph langsmith langchain_anthropic
 ```
 
 ### Tools
 
 ```shell
-pip install langchain_community duckduckgo-search langchain-ollama python-gitlab docker
+uv add langchain_community duckduckgo-search langchain-ollama python-gitlab docker
 ```
 
 ### Patch
 
 ```shell
-pip install urllib3==1.26.5
-pip install langgraph==0.2.50
+uv add urllib3==1.26.5
+uv add langgraph==0.2.50
 ```
 
 # GitLab CE Docker Setup
@@ -55,12 +59,6 @@ This guide helps you set up GitLab Community Edition using Docker Compose on Col
 1. Start Colima with sufficient resources:
 ```bash
 colima start --cpu 4 --memory 8 --disk 50
-```
-
-2. Create a new directory for GitLab:
-```bash
-mkdir gitlab-ce
-cd gitlab-ce
 ```
 
 3. Add GitLab hostname to your hosts file:
@@ -128,4 +126,31 @@ If GitLab fails to start:
 For persistent permission issues:
 ```bash
 sudo chown -R 998:998 gitlab/
+```
+
+
+Graph
+
+```mermaid
+graph TD
+    %% Current System Structure
+
+    START((START))
+    haiku[haiku]
+    llama[llama]
+    deepseek[deepseek]
+    tools[tools]
+    gitlab[gitlab]
+    secrets[secrets]
+    END((END))
+
+    %% Styling
+    classDef default fill:#bbf,stroke:#333,stroke-width:1px;
+    classDef router fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef eend fill:#f96,stroke:#333,stroke-width:2px;
+    classDef sstart fill:#9f9,stroke:#333,stroke-width:2px;
+
+    class START sstart;
+    class END eend;
+    class haiku,llama,deepseek,tools,gitlab,secrets default;
 ```
