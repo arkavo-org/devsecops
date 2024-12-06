@@ -19,6 +19,12 @@ OPENBAO_TOKEN=ghi
 
 ### Ollama
 
+To start on another machine
+
+```shell
+OLLAMA_HOST="0.0.0.0" ollama serve
+```
+
 ```shell
 ollama install llama3.2
 ollama install deepseek-coder-v2

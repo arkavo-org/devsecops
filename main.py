@@ -19,6 +19,7 @@ from langgraph.graph import StateGraph, add_messages
 from langgraph.prebuilt import ToolNode
 from langgraph.store.memory import InMemoryStore
 
+from agent_ollama_qwq import check_ollama_connection, create_ollama_agent
 from tool_docker import create_docker_tools
 from tool_graph import create_graph_visualization_tool
 from tool_openbao import create_secrets_tools
@@ -28,6 +29,7 @@ class QueryType(Enum):
     CODE = "code"
     CHAT_LLAMA = "chat_llama"
     CHAT_HAIKU = "chat_haiku"
+    CHAT_QWQ = "chat_qwq"
     TOOLS = "tools"
     GITLAB = "gitlab"
     SECRETS = "secrets"
@@ -83,6 +85,14 @@ def detect_query_type(state: State) -> str:
         return QueryType.END.value
 
     content = content.lower()
+
+    question_words = ["what", "why", "how", "when", "where", "who", "which"]
+    is_question = (
+            content.endswith("?") or
+            any(content.startswith(word) for word in question_words)
+    )
+    if is_question:
+        return QueryType.CHAT_QWQ.value
 
     # Check for secrets management keywords first
     secrets_keywords = [
@@ -363,6 +373,43 @@ class ChatNode:
                 "query_type": QueryType.END.value
             }
 
+
+class QWQNode:
+    """Node for handling general questions with QWQ model."""
+
+    def __init__(self, agent_executor):
+        self.agent = agent_executor
+
+    def process_state(self, state: State) -> dict:
+        """Process questions using the QWQ agent."""
+        try:
+            last_message = state["messages"][-1]
+            content = last_message.content if hasattr(last_message, 'content') else str(last_message)
+
+            response = self.agent.invoke({"input": content})
+            # Handle different response formats
+            if isinstance(response, dict):
+                output = response.get("output", response.get("text", str(response)))
+            else:
+                output = str(response)
+
+            # Clean up any remaining format markers
+            output = output.replace("Final Answer:", "").strip()
+            output = output.replace("Human:", "").strip()
+            output = output.replace("Assistant:", "").strip()
+
+            return {
+                "messages": [AIMessage(content=output)],
+                "query_type": QueryType.END.value
+            }
+        except Exception as ex:
+            print(f"Error in QWQNode processing: {str(ex)}")
+            return {
+                "messages": [AIMessage(
+                    content="I encountered an error processing your question. Could you please rephrase?")],
+                "query_type": QueryType.END.value
+            }
+
 def new_function():
     """Placeholder for a new function."""
     pass
@@ -462,6 +509,16 @@ if __name__ == "__main__":
     haiku = ChatAnthropic(model="claude-3-5-haiku-20241022")
     llama = ChatOllama(model="llama3.2")
     deepseek = ChatOllama(model="deepseek-coder-v2")
+    # Initialize QWQ model and agent
+    ollama_intranet_url = os.environ.get('OLLAMA_INTRANET_URL')
+    if not check_ollama_connection(ollama_intranet_url):
+        raise RuntimeError("Could not connect to Ollama service")
+    qwq_agent = create_ollama_agent(
+        base_url=ollama_intranet_url,
+        model_name="qwq"
+    )
+    # Create QWQ node
+    qwq = QWQNode(qwq_agent)
 
     # Initialize tools
     print("Setting up tools...")
@@ -663,7 +720,8 @@ if __name__ == "__main__":
         "deepseek": deepseek_node,
         "tools": tool_node,
         "gitlab": gitlab_node,
-        "secrets": secrets_node
+        "secrets": secrets_node,
+        "qwq": qwq
     }
 
     # Add each node with logging wrapper
@@ -682,6 +740,7 @@ if __name__ == "__main__":
         QueryType.CODE.value: "deepseek",
         QueryType.CHAT_LLAMA.value: "llama",
         QueryType.CHAT_HAIKU.value: "haiku",
+        QueryType.CHAT_QWQ.value: "qwq",
         QueryType.TOOLS.value: "tools",
         QueryType.GITLAB.value: "gitlab",
         QueryType.SECRETS.value: "secrets",
