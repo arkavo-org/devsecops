@@ -1,0 +1,22 @@
+name: Run start.sh on Push
+
+on:
+  push:
+    branches:
+      - main  # Change this to the branches you want to trigger the workflow
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set execute permissions for start.sh
+        run: chmod +x ./start.sh
+
+      - name: Run start.sh
+        run: ./start.sh
+        env:
+            IN_GITHUB_ACTIONS: true

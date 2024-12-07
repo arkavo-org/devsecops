@@ -1,0 +1,11 @@
+# myconfig.ini
+register-unsafely-without-email = True
+standalone = True
+domains = $USER_WEBSITE
+cert-path = ./cert.pem
+key-path = ./privkey.pem
+chain-path = ./chain.pem
+fullchain-path = ./fullchain.pem
+config-dir = .
+work-dir = .
+logs-dir = .

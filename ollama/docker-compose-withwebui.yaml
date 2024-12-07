@@ -1,0 +1,41 @@
+services:
+  ollama-webui:
+    ports:
+      - '3000:8080'
+    container_name: ollama-webui
+    image: ollamawebui/ollama-webui
+    environment:
+      ENV: prod
+      WEBUI_AUTH: 'False'
+      ENABLE_SIGNUP: 'False'
+      ENABLE_LOGIN_FORM: 'False'
+      ENABLE_OLLAMA_API: 'True'
+      OLLAMA_BASE_URL: https://ollama.juliancoy.us
+      DEFAULT_MODELS: 'llama3.2:latest'
+      WEBUI_URL: 'https://ollamawebui.juliancoy.us'
+    restart: no
+
+  ollama:
+    volumes:
+      - 'ollama_models:/root/.ollama/models'
+      - 'whisper_models:/data/cache/whisper/models'
+    ports:
+      - '11434:11434'
+    environment:
+      OLLAMA_ORIGINS: '*'
+      ENABLE_OLLAMA_API: 'True'
+      DATA_DIR: '/data'
+    container_name: ollama
+    image: ollama/ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: no
+
+volumes:
+  ollama_models:
+  whisper_models:

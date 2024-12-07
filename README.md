@@ -1,6 +1,23 @@
 # DevSecOps
 DevSecOps LangGraph
 
+## Introduction
+This repository is an amalgamation of best-in-class tools in Security and AI, arranged to work together with minimum configuration. Practically it serves as the entire backend for the Arkavo forum. 
+
+Components of this repo include  
+- **Ollama** - The best-in-class open-source LLM management solution
+- **Keycloak** - The best-in-class open-source identity and auth solution
+- **OpenTDF** - The best-in-class Attribute-Based Access Control (ABAC) addendum to Keycloak
+- **Org** - Handles needs of organizations using Arkavo forum - Events, Communications, Permissions
+- **Nginx-Proxy** - Serves the other services as HTTPS  
+- **AICouncil** - Recommends improvements to this repo in real time
+
+## System Diagram
+![Architecture](./diagrams/architecture.png)
+
+## AICouncil
+Tools are included to enforce OWASP best practices, run continuous AI-driven penetration testing, and provide implementation feedback on request. An AI Council engages in consistant dialogue about the "main" and "dev" branch and may make pull requests according to _Robert's Rules of Order_ following _in vivo_ testing. 
+
 ## Prerequisites
 
 - `uv` https://docs.astral.sh/uv/getting-started/installation/

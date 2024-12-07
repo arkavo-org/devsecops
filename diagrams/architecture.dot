@@ -1,0 +1,17 @@
+digraph Architecture {
+    rankdir=LR;
+    node [shape=box];
+
+    // Components
+    Keycloak [label="Keycloak+DB"];
+    OpenTDF [label="OpenTDF+DB"];
+    OrgBackend [label="Org-Backend"];
+    ReactFrontend [label="React-Frontend"];
+
+    // Connections with colors
+    OpenTDF -> Keycloak [label="Authenticates with" color=green penwidth=2];
+    OrgBackend -> Keycloak [label="Authenticates with" color=green penwidth=2];
+    ReactFrontend -> Keycloak [label="Authenticates with" color=green penwidth=2];
+    ReactFrontend -> OpenTDF [label="Interacts with" color=green penwidth=2];
+    ReactFrontend -> OrgBackend [label="Interacts with" color=green penwidth=2];
+}

@@ -226,4 +226,5 @@ cython_debug/
 /.idea/
 .DS_Store
 /gitlab-ce/
+env.py
 /arkavo-production/

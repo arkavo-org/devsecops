@@ -1,0 +1,4 @@
+ca.*
+*.pem
+config.ini
+server.crt

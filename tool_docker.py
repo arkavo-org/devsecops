@@ -155,6 +155,64 @@ class DockerTools:
                 "success": False,
                 "error": str(e)
             }
+        
+
+    def containerRunning(self, container_name):
+        """
+        Check if a Docker container is running using subprocess.
+
+        :param container_name: Name of the Docker container
+        :return: True if the container is running, otherwise False
+        """
+        # Get the container status
+        result = subprocess.run(
+            ["docker", "inspect", "--format='{{.State.Status}}'", container_name],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        
+        if result.returncode != 0:
+            if "No such object" in result.stderr:
+                print(f"Container {container_name} not found")
+                return False
+            else:
+                print(f"Error checking container status: {result.stderr}")
+                raise RuntimeError(result.stderr)
+
+        # Extract the status
+        status = result.stdout.strip().strip("'")
+        if status == "running":
+            print(f"Container {container_name} is already running")
+            return True
+
+        print(f"Container {container_name} is in status '{status}'. Removing...")
+        # Remove the container if it exists but is not running
+        remove_result = subprocess.run(
+            ["docker", "rm", container_name],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if remove_result.returncode != 0:
+            print(f"Error removing container {container_name}: {remove_result.stderr}")
+            raise RuntimeError(remove_result.stderr)
+
+        return False
+
+    def create_network(self, networkName):
+        """Create Docker network if not exists"""
+        if not self.client.networks.get(networkName):
+            self.client.networks.create(networkName)
+            print(f"Created Network {networkName}")
+            return
+        print(f"Network {networkName} already exists")
+        
+
+    def wait_for_db(self, db_url, db_user, max_attempts=30, delay=2):
+        cmd = f"bash ../wait_for_db.sh {db_url} {db_user}"
+        print(cmd)
+        os.system(cmd)
 
 
 def create_docker_tools() -> List[Tool]:
@@ -179,6 +237,8 @@ def create_docker_tools() -> List[Tool]:
     ]
 
     return tools
+
+
 
 
 # For standalone usage

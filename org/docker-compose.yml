@@ -1,0 +1,19 @@
+networks:
+  default:
+    name: $BRAND_NAME
+services:
+  org-backend:
+    image: cgr.dev/chainguard/go:latest
+    container_name: org-backend
+    ports:
+      - "8085:8085"
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: ["run", "main.go"]
+    restart: always
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - PORT=${ORG_PORT:-8085}
+
