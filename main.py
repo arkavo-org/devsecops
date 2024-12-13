@@ -23,7 +23,7 @@ from agent_ollama_qwq import check_ollama_connection, create_ollama_agent
 from tool_docker import create_docker_tools
 from tool_graph import create_graph_visualization_tool
 from tool_openbao import create_secrets_tools
-
+from tool_aws_cloudformation import create_cloudformation_tools
 
 class QueryType(Enum):
     CODE = "code"
@@ -610,14 +610,15 @@ if __name__ == "__main__":
             ).run(x)
         )
     ]
-
+    # Add CloudFormation tools
+    cloudformation_tools = create_cloudformation_tools()
     # Add graph visualization tool
     graph_viz_tool = create_graph_visualization_tool()
     # docker log
     docker_tools = create_docker_tools()
     secrets_tools = create_secrets_tools()
     # Combine all tools
-    tools = [search_tool, graph_viz_tool] + gitlab_tools + docker_tools
+    tools = [search_tool, graph_viz_tool] + gitlab_tools + docker_tools + cloudformation_tools
     for tool in tools:
         print(f"Tool name: {tool.name}")
 
@@ -672,6 +673,23 @@ if __name__ == "__main__":
     6. Handle errors gracefully and securely"""
 
     llama_prompt += "\n" + secrets_prompt
+
+    cloudformation_prompt = """When handling CloudFormation operations:
+    1. Verify AWS credentials are available
+    2. Validate templates before creation/updates
+    3. Check stack status before operations
+    4. Available operations:
+       - list_cf_stacks: List all stacks
+       - describe_cf_stack: Get stack details
+       - create_cf_stack: Create new stack
+       - update_cf_stack: Update existing stack
+       - delete_cf_stack: Delete stack
+       - validate_cf_template: Validate template
+    5. Always confirm operations before execution
+    6. Handle errors gracefully"""
+
+    llama_prompt += "\n" + cloudformation_prompt
+    haiku_prompt += "\n" + cloudformation_prompt
 
     # Create agents with simplified prompts
     haiku_agent = create_agent_executor(haiku, tools, haiku_prompt)

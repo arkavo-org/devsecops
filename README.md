@@ -39,7 +39,7 @@ uv add langgraph langsmith langchain_anthropic
 ### Tools
 
 ```shell
-uv add langchain_community duckduckgo-search langchain-ollama python-gitlab docker
+uv add langchain_community duckduckgo-search langchain-ollama python-gitlab docker boto3
 ```
 
 ### Patch
