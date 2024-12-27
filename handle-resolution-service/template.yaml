@@ -1,0 +1,269 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Handle Resolution Service for ATProto
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name for resource naming
+
+  VpcCIDR:
+    Type: String
+    Default: 10.0.0.0/16
+    Description: CIDR block for VPC
+
+  RedisNodeType:
+    Type: String
+    Default: cache.t4g.micro
+    Description: Redis node type for ElastiCache cluster
+
+  DomainName:
+    Type: String
+    Default: arkavo.net
+    Description: Domain name for DNS configuration
+
+  XrpcSubdomain:
+    Type: String
+    Default: xrpc
+    Description: Subdomain for XRPC endpoint
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Timeout: 30
+    MemorySize: 256
+    Environment:
+      Variables:
+        REDIS_ENDPOINT: !GetAtt RedisCluster.PrimaryEndPoint.Address
+        DYNAMODB_TABLE: !Ref HandleTable
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      ApiGwHostedZoneId: Z1UJRXOUMOOFQ8
+    us-east-2:
+      ApiGwHostedZoneId: ZOJJZC49E0EPZ
+    us-west-1:
+      ApiGwHostedZoneId: Z2MUQ32089INYE
+    us-west-2:
+      ApiGwHostedZoneId: Z2OJLYMUO9EFXC
+    af-south-1:
+      ApiGwHostedZoneId: Z2LHQQ2MN2RDXU
+    ap-east-1:
+      ApiGwHostedZoneId: Z3FD1VL95ZNJKG
+    ap-south-1:
+      ApiGwHostedZoneId: Z3VO1THU9YC4UR
+    ap-northeast-1:
+      ApiGwHostedZoneId: Z1YSHQZHG15GKL
+    ap-northeast-2:
+      ApiGwHostedZoneId: Z20JF4UZKIW1U8
+    ap-southeast-1:
+      ApiGwHostedZoneId: Z1LMS91P8CMLE5
+    ap-southeast-2:
+      ApiGwHostedZoneId: Z2RPCDW04V8134
+    eu-central-1:
+      ApiGwHostedZoneId: Z1U9ULNL0V5AJ3
+    eu-west-1:
+      ApiGwHostedZoneId: ZLY8HYME6SFDD
+    eu-west-2:
+      ApiGwHostedZoneId: ZJ5UAJN8Y3Z2Q
+    eu-south-1:
+      ApiGwHostedZoneId: Z3UD5QRXMK4VX4
+    eu-west-3:
+      ApiGwHostedZoneId: Z3KY65QWINUZ85
+    eu-north-1:
+      ApiGwHostedZoneId: Z3UWIKFBR1L3HS
+    me-south-1:
+      ApiGwHostedZoneId: Z20ZBPC0SS8806
+    sa-east-1:
+      ApiGwHostedZoneId: ZCMLWB8V5SYIT
+
+Resources:
+  # VPC Resources
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub ${Environment}-handle-check-vpc
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [0, !Cidr [!Ref VpcCIDR, 4, 8]]
+      AvailabilityZone: !Select [0, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub ${Environment}-private-subnet-1
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Select [1, !Cidr [!Ref VpcCIDR, 4, 8]]
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: !Sub ${Environment}-private-subnet-2
+
+  # Security Groups
+  RedisSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Redis cluster
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6379
+          SourceSecurityGroupId: !Ref LambdaSecurityGroup
+
+  LambdaSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for Lambda function
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  # Redis Resources
+  RedisSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Subnet group for Redis cluster
+      SubnetIds:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+
+  RedisCluster:
+    Type: AWS::ElastiCache::ReplicationGroup
+    Properties:
+      ReplicationGroupDescription: Redis cluster for handle availability cache
+      Engine: redis
+      EngineVersion: '7.0'
+      CacheNodeType: !Ref RedisNodeType
+      NumCacheClusters: 2
+      AutomaticFailoverEnabled: true
+      CacheSubnetGroupName: !Ref RedisSubnetGroup
+      SecurityGroupIds:
+        - !Ref RedisSecurityGroup
+      AtRestEncryptionEnabled: true
+      TransitEncryptionEnabled: true
+
+  # DynamoDB Resources
+  HandleTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${Environment}-handles
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: handle
+          AttributeType: S
+      KeySchema:
+        - AttributeName: handle
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+
+  # Lambda Function and API Gateway (using SAM)
+  HandleCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-handle-resolution
+      CodeUri: ./src
+      Handler: app.handler
+      Layers:
+        - !Ref DependenciesLayer
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+      Events:
+        GetHandle:
+          Type: Api
+          Properties:
+            Path: /xrpc/com.atproto.identity.resolveHandle
+            Method: get
+        HeadHandle:
+          Type: Api
+          Properties:
+            Path: /xrpc/com.atproto.identity.resolveHandle
+            Method: head
+      AutoPublishAlias: live
+      ProvisionedConcurrencyConfig:
+        ProvisionedConcurrentExecutions: 2
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref HandleTable
+        - VPCAccessPolicy: {}
+
+  # Lambda Layer for Dependencies
+  DependenciesLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub ${Environment}-handle-check-deps
+      Description: Dependencies for handle check function
+      ContentUri: ./dependencies/
+      CompatibleRuntimes:
+        - python3.12
+      RetentionPolicy: Retain
+
+  # Route53 Resources
+  HostedZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Ref DomainName
+      Comment: Main hosted zone for ATProto handle resolution
+
+  XrpcDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Sub ${XrpcSubdomain}.${DomainName}
+      Type: A
+      AliasTarget:
+        DNSName: !Sub ${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com
+        HostedZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", ApiGwHostedZoneId]
+        EvaluateTargetHealth: true
+
+  XrpcAaaaDnsRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref HostedZone
+      Name: !Sub ${XrpcSubdomain}.${DomainName}
+      Type: AAAA
+      AliasTarget:
+        DNSName: !Sub ${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com
+        HostedZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", ApiGwHostedZoneId]
+        EvaluateTargetHealth: true
+
+Outputs:
+  ApiEndpoint:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/xrpc/com.atproto.identity.resolveHandle
+
+  XrpcEndpoint:
+    Description: XRPC endpoint URL
+    Value: !Sub https://${XrpcSubdomain}.${DomainName}/xrpc/com.atproto.identity.resolveHandle
+
+  RedisEndpoint:
+    Description: Redis cluster endpoint
+    Value: !GetAtt RedisCluster.PrimaryEndPoint.Address
+
+  DynamoDBTable:
+    Description: DynamoDB table name
+    Value: !Ref HandleTable

@@ -1,0 +1,10 @@
+version = 0.1
+[default.deploy.parameters]
+stack_name = "handle-resolution-service"
+resolve_s3 = true
+s3_prefix = "handle-resolution-service"
+region = "us-east-1"
+confirm_changeset = true
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "Environment=\"prod\" VpcCIDR=\"10.0.0.0/16\" RedisNodeType=\"cache.t4g.micro\" DomainName=\"arkavo.net\" XrpcSubdomain=\"xrpc\""
+image_repositories = []

@@ -1,0 +1,6 @@
+{
+  "httpMethod": "HEAD",
+  "queryStringParameters": {
+    "handle": "test.arkavo.social"
+  }
+}
