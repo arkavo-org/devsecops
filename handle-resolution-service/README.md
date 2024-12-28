@@ -57,6 +57,20 @@ sam deploy --guided
 sam build && sam deploy --no-confirm-changeset
 ```
 
+```shell
+sam delete --stack-name handle-resolution-service --no-prompts
+```
+
+### Production Test
+
+```shell
+curl https://xrpc.arkavo.net/xrpc/com.atproto.identity.resolveHandle?handle=test.bsky.social
+```
+
+```shell
+curl https://q8ku4t7uxj.execute-api.us-east-1.amazonaws.com/Prod/xrpc/com.atproto.identity.resolveHandle?handle=test.bsky.social
+```
+
 ## Local Development
 
 1. Install local dependencies in your virtual environment:

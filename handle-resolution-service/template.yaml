@@ -35,12 +35,14 @@ Parameters:
 Globals:
   Function:
     Runtime: python3.12
-    Timeout: 30
-    MemorySize: 256
+    Timeout: 10
+    MemorySize: 512
     Environment:
       Variables:
-        REDIS_ENDPOINT: !GetAtt RedisCluster.PrimaryEndPoint.Address
+        REDIS_ENDPOINT: !GetAtt RedisCluster.ReaderEndPoint.Address
         DYNAMODB_TABLE: !Ref HandleTable
+        PYTHONWARNINGS: "ignore:Unverified HTTPS request"
+        LOG_LEVEL: "INFO"
 
 Mappings:
   RegionMap:
@@ -133,7 +135,7 @@ Resources:
       GroupDescription: Security group for Lambda function
       VpcId: !Ref VPC
       SecurityGroupEgress:
-        - IpProtocol: -1
+        - IpProtocol: "-1"
           FromPort: -1
           ToPort: -1
           CidrIp: 0.0.0.0/0
@@ -184,6 +186,7 @@ Resources:
       FunctionName: !Sub ${Environment}-handle-resolution
       CodeUri: ./src
       Handler: app.handler
+      Tracing: Active
       Layers:
         - !Ref DependenciesLayer
       VpcConfig:
@@ -204,8 +207,6 @@ Resources:
             Path: /xrpc/com.atproto.identity.resolveHandle
             Method: head
       AutoPublishAlias: live
-      ProvisionedConcurrencyConfig:
-        ProvisionedConcurrentExecutions: 2
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref HandleTable
@@ -223,33 +224,27 @@ Resources:
       RetentionPolicy: Retain
 
   # Route53 Resources
-  HostedZone:
-    Type: AWS::Route53::HostedZone
-    Properties:
-      Name: !Ref DomainName
-      Comment: Main hosted zone for ATProto handle resolution
-
-  XrpcDnsRecord:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: !Sub ${XrpcSubdomain}.${DomainName}
-      Type: A
-      AliasTarget:
-        DNSName: !Sub ${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com
-        HostedZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", ApiGwHostedZoneId]
-        EvaluateTargetHealth: true
-
-  XrpcAaaaDnsRecord:
-    Type: AWS::Route53::RecordSet
-    Properties:
-      HostedZoneId: !Ref HostedZone
-      Name: !Sub ${XrpcSubdomain}.${DomainName}
-      Type: AAAA
-      AliasTarget:
-        DNSName: !Sub ${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com
-        HostedZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", ApiGwHostedZoneId]
-        EvaluateTargetHealth: true
+#  XrpcDnsRecord:
+#    Type: AWS::Route53::RecordSet
+#    Properties:
+#      HostedZoneId: "Z09772883U0XNWXDMKA2V"
+#      Name: !Sub ${XrpcSubdomain}.${DomainName}
+#      Type: A
+#      AliasTarget:
+#        DNSName: !Sub ${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com
+#        HostedZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", ApiGwHostedZoneId]
+#        EvaluateTargetHealth: true
+#
+#  XrpcAaaaDnsRecord:
+#    Type: AWS::Route53::RecordSet
+#    Properties:
+#      HostedZoneId: "Z09772883U0XNWXDMKA2V"
+#      Name: !Sub ${XrpcSubdomain}.${DomainName}
+#      Type: AAAA
+#      AliasTarget:
+#        DNSName: !Sub ${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com
+#        HostedZoneId: !FindInMap [RegionMap, !Ref "AWS::Region", ApiGwHostedZoneId]
+#        EvaluateTargetHealth: true
 
 Outputs:
   ApiEndpoint:

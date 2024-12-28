@@ -3,32 +3,65 @@ import json
 import os
 import redis
 import boto3
+import logging
 from typing import Optional, Dict, Any, Tuple
+from botocore.config import Config
+
+# Configure logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Configure boto3 with retries
+boto3_config = Config(
+    retries=dict(
+        max_attempts=3
+    )
+)
 
 
 def get_redis_client():
     """
-    Get Redis client with appropriate configuration for environment
+    Get Redis client with appropriate configuration for environment.
+    Uses REDIS_ENDPOINT environment variable.
     """
     is_local = os.environ.get('AWS_SAM_LOCAL') == 'true'
+
+    logger.info(f"Redis initialization - is_local: {is_local}")
 
     if is_local:
         # Local development settings
         return redis.Redis(
-            host='host.docker.internal',  # Special Docker DNS name to reach host machine
+            host='host.docker.internal',
             port=6379,
             decode_responses=True,
-            socket_connect_timeout=1,  # Short timeout for development
+            socket_connect_timeout=1,
             retry_on_timeout=False
         )
     else:
         # Production settings
-        return redis.Redis(
-            host=os.environ['REDIS_ENDPOINT'],
-            port=6379,
-            ssl=True,
-            decode_responses=True
-        )
+        redis_host = os.environ.get('REDIS_ENDPOINT')
+        if not redis_host:
+            raise ValueError("REDIS_ENDPOINT environment variable not set")
+
+        logger.info(f"Connecting to Redis at: {redis_host}")
+
+        connection_kwargs = {
+            'host': redis_host,
+            'port': 6379,
+            'decode_responses': True,
+            'socket_timeout': 3,
+            'socket_connect_timeout': 3,
+            'retry_on_timeout': True,
+            'max_connections': 10,
+            'connection_class': redis.SSLConnection,
+        }
+
+        try:
+            pool = redis.ConnectionPool(**connection_kwargs)
+            return redis.Redis(connection_pool=pool)
+        except redis.ConnectionError as e:
+            logger.error(f"Failed to connect to Redis: {e}")
+            raise
 
 
 def get_dynamodb_table():
@@ -38,10 +71,12 @@ def get_dynamodb_table():
     is_local = os.environ.get('AWS_SAM_LOCAL') == 'true'
 
     if is_local:
-        dynamodb = boto3.resource('dynamodb', endpoint_url='http://host.docker.internal:8000')
+        dynamodb = boto3.resource('dynamodb',
+                                  endpoint_url='http://host.docker.internal:8000',
+                                  config=boto3_config)
         table_name = os.environ.get('DYNAMODB_TABLE', 'dev-handles')
     else:
-        dynamodb = boto3.resource('dynamodb')
+        dynamodb = boto3.resource('dynamodb', config=boto3_config)
         table_name = os.environ['DYNAMODB_TABLE']
 
     return dynamodb.Table(table_name)
@@ -51,10 +86,10 @@ def get_dynamodb_table():
 try:
     redis_client = get_redis_client()
     table = get_dynamodb_table()
+    logger.info("Successfully initialized clients")
 except Exception as e:
-    print(f"Warning: Failed to initialize clients: {str(e)}")
-    redis_client = None
-    table = None
+    logger.error(f"Failed to initialize clients: {str(e)}")
+    raise
 
 
 def validate_handle(handle: str) -> bool:
@@ -89,58 +124,72 @@ def get_handle_data(handle: str) -> Tuple[Optional[Dict[str, str]], bool]:
     Retrieve handle data from cache or database.
     Returns tuple of (data, is_cached).
     """
-    if not redis_client or not table:
-        # Return mock data for local development if services aren't available
-        return {
-            'did': 'did:plc:mock12345',
-            'handle': handle
-        }, False
+    cache_key = f'handle:{handle.lower()}'
+    logger.info(f"Starting to fetch data for handle: {handle} (Cache Key: {cache_key})")
 
-    # Check cache first
+    # Step 1: Check Redis cache
     try:
-        cache_key = f'handle:{handle.lower()}'
+        logger.info(f"Checking Redis cache for key: {cache_key}")
         cached_result = redis_client.get(cache_key)
-
         if cached_result:
+            logger.info(f"Cache hit for key: {cache_key}")
             try:
-                return json.loads(cached_result), True
-            except json.JSONDecodeError:
-                # Invalid cache entry, will fetch from DB
-                redis_client.delete(cache_key)
+                # Attempt to parse the cached result
+                parsed_result = json.loads(cached_result)
+                logger.info(f"Successfully parsed cached result: {parsed_result}")
+                return parsed_result, True
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse cached result for key: {cache_key}. Error: {str(e)}")
+                try:
+                    # Delete the invalid cache entry
+                    logger.info(f"Deleting invalid cache entry for key: {cache_key}")
+                    redis_client.delete(cache_key)
+                except redis.RedisError as e:
+                    logger.error(f"Failed to delete invalid cache entry for key: {cache_key}. Error: {str(e)}")
+                    pass  # Ignore delete errors
+        else:
+            logger.info(f"Cache miss for key: {cache_key}")
+    except (redis.ConnectionError, redis.TimeoutError) as e:
+        logger.error(f"Redis connection/timeout error while fetching key: {cache_key}. Error: {str(e)}")
     except redis.RedisError as e:
-        print(f"Redis error: {str(e)}")
-        # Continue without cache
+        logger.error(f"Redis error while fetching key: {cache_key}. Error: {str(e)}")
 
-    # Query DynamoDB if not in cache or cache was invalid
+    # Step 2: Query DynamoDB if not in cache or cache was invalid
     try:
+        logger.info(f"Querying DynamoDB for handle: {handle}")
         response = table.get_item(
             Key={'handle': handle.lower()},
             ConsistentRead=True,
             ProjectionExpression='handle, did'
         )
+        logger.info(f"DynamoDB response: {response}")
     except Exception as e:
-        print(f"DynamoDB error: {str(e)}")
-        return None, False
+        logger.error(f"DynamoDB error while querying handle: {handle}. Error: {str(e)}")
+        raise
 
+    # Step 3: Process DynamoDB response
     item = response.get('Item')
     if not item:
+        logger.info(f"Handle not found in DynamoDB: {handle}")
         return None, False
 
     result = {
         'did': item['did'],
         'handle': handle
     }
+    logger.info(f"Successfully retrieved data from DynamoDB: {result}")
 
-    # Try to cache the result (1 hour TTL)
-    if redis_client:
-        try:
-            redis_client.setex(
-                cache_key,
-                3600,  # 1 hour
-                json.dumps(result)
-            )
-        except redis.RedisError as e:
-            print(f"Redis caching error: {str(e)}")
+    # Step 4: Cache the result in Redis
+    try:
+        logger.info(f"Caching result in Redis for key: {cache_key} with TTL: 3600 seconds")
+        redis_client.setex(
+            cache_key,
+            3600,  # 1 hour
+            json.dumps(result)
+        )
+        logger.info(f"Successfully cached result for key: {cache_key}")
+    except redis.RedisError as e:
+        logger.error(f"Redis caching error for key: {cache_key}. Error: {str(e)}")
 
     return result, False
 
@@ -154,19 +203,16 @@ def create_response(
     """
     Create API Gateway response with proper headers.
     """
-    headers = {}
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, HEAD',
+        'Access-Control-Allow-Headers': 'Content-Type'
+    }
 
-    if method == 'HEAD':
-        # Minimal headers for HEAD requests
-        headers['Access-Control-Allow-Origin'] = '*'
-    else:
-        # Full headers for GET requests
+    if method != 'HEAD':
         headers.update({
             'Content-Type': 'application/json',
-            'X-Cache-Hit': str(cached).lower(),
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, HEAD',
-            'Access-Control-Allow-Headers': 'Content-Type'
+            'X-Cache-Hit': str(cached).lower()
         })
 
     response = {
@@ -185,30 +231,53 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Lambda handler for handle resolution.
     Supports both GET and HEAD methods.
     """
-    # Extract HTTP method and handle
+    logger.info(f"Processing request: {json.dumps(event)}")
+
+    # Extract method before try block to ensure it's available in error handling
     method = event.get('httpMethod', 'GET')
-    handle = event.get('queryStringParameters', {}).get('handle')
 
-    # Validate handle format
-    if not handle or not validate_handle(handle):
+    try:
+        # Extract handle from query parameters
+        query_params = event.get('queryStringParameters', {}) or {}
+        handle = query_params.get('handle')
+
+        # Validate handle format
+        if not handle or not validate_handle(handle):
+            return create_response(
+                400,
+                {'error': 'Invalid handle format'} if method == 'GET' else None,
+                method=method
+            )
+
+        # For both GET and HEAD requests, fetch the data
+        result, cached = get_handle_data(handle)
+
+        if not result:
+            return create_response(
+                404,
+                {'error': 'Handle not found'} if method == 'GET' else None,
+                method=method
+            )
+
+        # Return appropriate response based on method
         return create_response(
-            400,
-            {'error': 'Invalid handle format'} if method == 'GET' else None,
+            200,
+            result if method == 'GET' else None,
+            cached,
             method=method
         )
 
-    # For HEAD requests, we only validate the handle
-    if method == 'HEAD':
-        return create_response(200, method=method)
-
-    # For GET requests, fetch and return the data
-    result, cached = get_handle_data(handle)
-
-    if not result:
+    except redis.ConnectionError as e:
+        logger.error(f"Redis connection error: {str(e)}")
         return create_response(
-            404,
-            {'error': 'Handle not found'},
+            503,
+            {'error': 'Service temporarily unavailable'} if method == 'GET' else None,
             method=method
         )
-
-    return create_response(200, result, cached, method=method)
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}", exc_info=True)
+        return create_response(
+            500,
+            {'error': 'Internal server error'} if method == 'GET' else None,
+            method=method
+        )
