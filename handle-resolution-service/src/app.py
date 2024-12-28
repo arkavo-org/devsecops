@@ -137,7 +137,8 @@ def get_handle_data(handle: str) -> Tuple[Optional[Dict[str, str]], bool]:
                 # Attempt to parse the cached result
                 parsed_result = json.loads(cached_result)
                 logger.info(f"Successfully parsed cached result: {parsed_result}")
-                return parsed_result, True
+                # Only return the 'did' field
+                return {'did': parsed_result['did']}, True
             except json.JSONDecodeError as e:
                 logger.warning(f"Failed to parse cached result for key: {cache_key}. Error: {str(e)}")
                 try:
@@ -160,7 +161,7 @@ def get_handle_data(handle: str) -> Tuple[Optional[Dict[str, str]], bool]:
         response = table.get_item(
             Key={'handle': handle.lower()},
             ConsistentRead=True,
-            ProjectionExpression='handle, did'
+            ProjectionExpression='did'  # Only request the 'did' field
         )
         logger.info(f"DynamoDB response: {response}")
     except Exception as e:
@@ -174,8 +175,7 @@ def get_handle_data(handle: str) -> Tuple[Optional[Dict[str, str]], bool]:
         return None, False
 
     result = {
-        'did': item['did'],
-        'handle': handle
+        'did': item['did']
     }
     logger.info(f"Successfully retrieved data from DynamoDB: {result}")
 

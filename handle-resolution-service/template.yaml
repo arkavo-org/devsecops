@@ -117,6 +117,58 @@ Resources:
         - Key: Name
           Value: !Sub ${Environment}-private-subnet-2
 
+  # Route Tables for Private Subnets
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Environment}-private-rt-1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub ${Environment}-private-rt-2
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable1
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable2
+
+  # DynamoDB VPC Endpoint
+  DynamoDBEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.dynamodb
+      VpcEndpointType: Gateway
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action:
+              - "dynamodb:GetItem"
+              - "dynamodb:PutItem"
+              - "dynamodb:DeleteItem"
+              - "dynamodb:Query"
+              - "dynamodb:Scan"
+            Resource: !GetAtt HandleTable.Arn
+      RouteTableIds:
+        - !Ref PrivateRouteTable1
+        - !Ref PrivateRouteTable2
+
   # Security Groups
   RedisSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -208,7 +260,7 @@ Resources:
             Method: head
       AutoPublishAlias: live
       Policies:
-        - DynamoDBReadPolicy:
+        - DynamoDBCrudPolicy:
             TableName: !Ref HandleTable
         - VPCAccessPolicy: {}
 
@@ -262,3 +314,7 @@ Outputs:
   DynamoDBTable:
     Description: DynamoDB table name
     Value: !Ref HandleTable
+
+  DynamoDBEndpointId:
+    Description: DynamoDB VPC Endpoint ID
+    Value: !Ref DynamoDBEndpoint
