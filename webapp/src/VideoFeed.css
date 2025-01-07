@@ -1,6 +1,6 @@
 .feed-container-outer {
     overflow-y: scroll;
-    scroll-snap-type: y mandatory;
+    /*scroll-snap-type: y mandatory;*/
     -ms-overflow-style: none; /* Internet Explorer 10+ */
     scrollbar-width: none; /* Firefox */
 }
@@ -17,9 +17,11 @@
 
 .video-feed-item {
     width: 100%;
-    scroll-snap-align: start;
+    scroll-snap-align: center;
     position: relative;
+    transition: filter 0.3s ease;
 }
+
 
 .video-container {
     width: 100%;
@@ -81,34 +83,3 @@ video {
     width: 100%;
     position: relative;
 }
-
-.video-container {
-    position: relative;
-}
-
-
-video {
-    width: 100%;
-    object-fit: cover;
-}
-
-.feed-container-outer {
-    height: 100vh;
-    overflow-y: scroll;
-    scroll-snap-type: y mandatory;
-    -ms-overflow-style: none; /* Internet Explorer 10+ */
-    scrollbar-width: none; /* Firefox */
-}
-
-.feed-container-outer::-webkit-scrollbar {
-    display: none; /* Safari and Chrome */
-}
-
-.video-feed-item {
-    width: 100%;
-    scroll-snap-align: center;
-    position: relative;
-    transition: filter 0.3s ease;
-}
-
-
