@@ -52,6 +52,11 @@ chmod +x build.sh
 sam deploy --guided
 ```
 
+3. Plan
+```bash
+sam build && sam deploy --no-execute-changese
+```
+
 3. Subsequent deployments:
 ```bash
 sam build && sam deploy --no-confirm-changeset

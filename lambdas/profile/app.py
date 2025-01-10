@@ -1,4 +1,3 @@
-import json
 import os
 from typing import Dict, Any, Optional
 
@@ -11,7 +10,7 @@ from botocore.exceptions import ClientError
 # Initialize utilities
 logger = Logger()
 metrics = Metrics()
-app = APIGatewayRestResolver()
+app = APIGatewayRestResolver(strip_prefixes=["/xrpc"])
 
 # Constants
 DYNAMO_TABLE_NAME = os.environ["PROFILES_TABLE_NAME"]
@@ -69,24 +68,20 @@ def validate_profile_data(profile: Dict[str, Any]) -> None:
 
 def format_profile_response(profile: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Format profile data according to ATProtocol specification
+    Format profile data as a flat structure
     """
     return {
-        "standard": {
-            "handle": profile["handle"],
-            "did": profile["did"],
-            "displayName": profile["profileName"],
-            "avatarUrl": profile.get("avatarUrl"),
-            "description": profile.get("description")
-        },
-        "extended": {
-            "creationDate": profile["creationDate"],
-            "publicID": profile["publicID"]
-        }
+        "handle": profile["handle"],
+        "did": profile["did"],
+        "displayName": profile["profileName"],
+        "avatarUrl": profile.get("avatarUrl"),
+        "description": profile.get("description"),
+        "creationDate": profile["creationDate"],
+        "publicID": profile["publicID"]
     }
 
 
-@app.get("/xrpc/app.arkavo.actor.getProfile")
+@app.get("/app.arkavo.actor.getProfile")
 def get_profile() -> Dict[str, Any]:
     """
     Main handler for profile retrieval
@@ -95,18 +90,14 @@ def get_profile() -> Dict[str, Any]:
         # Get and validate query parameters
         actor = app.current_event.get_query_string_value(name="actor")
         if not actor:
-            return {
-                "statusCode": 400,
-                "body": json.dumps({"error": "Missing 'actor' parameter"})
-            }
+            app.response.status_code = 400
+            return {"error": "Missing 'actor' parameter"}
 
         # Get profile data
         profile = get_profile_from_dynamo(actor)
         if not profile:
-            return {
-                "statusCode": 404,
-                "body": json.dumps({"error": "Profile not found"})
-            }
+            app.response.status_code = 404
+            return {"error": "Profile not found"}
 
         # Validate profile data
         validate_profile_data(profile)
@@ -114,27 +105,19 @@ def get_profile() -> Dict[str, Any]:
         # Record metric for successful lookup
         metrics.add_metric(name="ProfileLookupSuccess", unit="Count", value=1)
 
-        # Format and return response
-        formatted_response = format_profile_response(profile)
-        return {
-            "statusCode": 200,
-            "body": json.dumps(formatted_response)
-        }
+        # Return formatted response
+        return format_profile_response(profile)
 
     except ProfileError as error:
         logger.error(f"Profile error: {error.message}")
         metrics.add_metric(name="ProfileLookupError", unit="Count", value=1)
-        return {
-            "statusCode": error.status_code,
-            "body": json.dumps({"error": error.message})
-        }
+        app.response.status_code = error.status_code
+        return {"error": error.message}
     except Exception as e:
         logger.exception("Unhandled exception")
         metrics.add_metric(name="UnhandledError", unit="Count", value=1)
-        return {
-            "statusCode": 500,
-            "body": json.dumps({"error": "Internal server error"})
-        }
+        app.response.status_code = 500
+        return {"error": "Internal server error"}
 
 
 @logger.inject_lambda_context
