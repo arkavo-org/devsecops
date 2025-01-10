@@ -176,7 +176,9 @@ Resources:
               - "dynamodb:DeleteItem"
               - "dynamodb:Query"
               - "dynamodb:Scan"
-            Resource: !GetAtt HandleTable.Arn
+            Resource:
+              - !GetAtt HandleTable.Arn
+              - !GetAtt ProfilesTable.Arn
       RouteTableIds:
         - !Ref PrivateRouteTable1
         - !Ref PrivateRouteTable2
@@ -478,6 +480,59 @@ Resources:
       ResourceRecords:
         - !GetAtt Authnz.PublicIp
 
+  # ProfilesTable definition
+  ProfilesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${Environment}-profiles
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: handle
+          AttributeType: S
+      KeySchema:
+        - AttributeName: handle
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
+
+  # Profile Lambda Function
+  ProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Environment}-profile
+      CodeUri: profile/
+      Handler: app.lambda_handler
+      Runtime: python3.12
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref LambdaSecurityGroup
+        SubnetIds:
+          - !Ref PrivateSubnet1
+          - !Ref PrivateSubnet2
+      Environment:
+        Variables:
+          PROFILES_TABLE_NAME: !Ref ProfilesTable
+          POWERTOOLS_SERVICE_NAME: profile-service
+          POWERTOOLS_METRICS_NAMESPACE: ProfileService
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            Path: /xrpc/app.arkavo.actor.getProfile
+            Method: get
+            RestApiId: !Ref ServerlessRestApi
+      AutoPublishAlias: live
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProfilesTable
+        - VPCAccessPolicy: {}
+
 #  XrpcDnsRecord:
 #    Type: AWS::Route53::RecordSet
 #    Properties:
@@ -528,3 +583,11 @@ Outputs:
   EC2PublicDNS:
     Description: Public DNS of EC2 instance
     Value: !GetAtt Authnz.PublicDnsName
+
+  ProfileFunction:
+    Description: Profile Lambda Function ARN
+    Value: !GetAtt ProfileFunction.Arn
+
+  ProfilesTable:
+    Description: Profiles DynamoDB table name
+    Value: !Ref ProfilesTable
