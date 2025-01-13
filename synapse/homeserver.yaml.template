@@ -1,38 +1,34 @@
-# Server settings
-server_name: "$SYNAPSE_BASE_URL"
-pid_file: "/data/homeserver.pid"
-web_client_location: $PROTOCOL_USER_WEBSITE
-public_baseurl: "$PROTOCOL_SYNAPSE_BASE_URL"
+# Configuration file for Synapse.
+#
+# This is a YAML file: see [1] for a quick introduction. Note in particular
+# that *indentation is important*: all the elements of a list or dictionary
+# should have the same indentation.
+#
+# [1] https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html
+#
+# For more information on how to configure Synapse, including a complete accounting of
+# each option, go to docs/usage/configuration/config_documentation.md or
+# https://element-hq.github.io/synapse/latest/usage/configuration/config_documentation.html
+server_name: "matrix.$USER_WEBSITE"
+pid_file: /data/homeserver.pid
+
 bind_addresses: ['0.0.0.0']
 federation_port: 8448
-
-# Database configuration
-database:
-  name: psycopg2
-  args:
-    user: "postgres"
-    password: "changeme"
-    database: "synapse"
-    host: "synapsedb"
-    port: 5432
-    cp_min: 5
-    cp_max: 10
 
 # Storage settings
 media_store_path: "/data/media"
 uploads_path: "/data/uploads"
-registration_shared_secret_path: "/data/registration_shared_secret"
 
 # Log settings
 log_config: "/data/$BRAND_NAME.log.config"
 
 # Federation settings
 federation_domain_whitelist: []
-allow_public_rooms_without_auth: false
+allow_public_rooms_without_auth: true
 allow_public_rooms_over_federation: false
 
 # Room settings
-encryption_enabled_by_default_for_room_type: "all"
+# encryption_enabled_by_default_for_room_type: "all"
 
 # Rate limiting
 rc_messages_per_second: 0.2
@@ -42,12 +38,11 @@ rc_message_burst_count: 10
 enable_registration: false
 registration_requires_token: true
 
-
 # OIDC Settings
 oidc_providers:
   - idp_id: keycloak
     idp_name: "KeyCloak server"
-    issuer: "$KEYCLOAK_HOST/auth/realms/opentdf"
+    issuer: "https://keycloak.$USER_WEBSITE/auth/realms/opentdf"
     client_id: "synapse"
     client_secret: "$SYNAPSE_CLIENT_SECRET"
     scopes: ["openid", "profile"]
@@ -56,15 +51,6 @@ oidc_providers:
         localpart_template: "{{ user.preferred_username }}"
         display_name_template: "{{ user.name }}"
     backchannel_logout_enabled: true # Optional
-    discover: true
-    skip_verification: true  # For testing, especially if using self-signed certs
-    request_timeout: 10000   # Increase timeout to 10 seconds
-    verify_certificates: true  # For testing with self-signed certificates
-    proxy:
-      enabled: false  # Disable proxy if you're running locally
-    authorization_endpoint: "$KEYCLOAK_AUTH_URL/realms/opentdf/protocol/openid-connect/auth"
-    token_endpoint: "$KEYCLOAK_AUTH_URL/realms/opentdf/protocol/openid-connect/token"
-    userinfo_endpoint: "$KEYCLOAK_AUTH_URL/realms/opentdf/protocol/openid-connect/userinfo"
 
 # Listeners
 listeners:
@@ -76,14 +62,25 @@ listeners:
       - names: [client, federation]
         compress: false
 
-# Trust all X-Forwarded-For headers from your reverse proxy
+database:
+  name: sqlite3
+  args:
+    database: /data/homeserver.db
+log_config: "/data/$BRAND_NAME.log.config"
+media_store_path: /data/media_store
+registration_shared_secret: ";puZ#1,lJgoC-_AsCLYSXe_wF;:hMxQ^IHrZMAnq#WyxNWsGSG"
+report_stats: true
+macaroon_secret_key: "FCY*p~51G5x:QT^0UA,N5&E^D*SKnVEWZp.*+ZkAeIhnC@CGNk"
+form_secret: "YgUZiuu-,fNY12QnSF3o6N@KJ3P^OXe*AQzm9sg2e~7~DhrQss"
+signing_key_path: "/data/matrix.$USER_WEBSITE.signing.key"
 trusted_key_servers:
   - server_name: "matrix.org"
 
 # Report anonymous statistics
 report_stats: false
 
-# Set sqlite database location - even though we're using postgres, this needs to be set
-database_path: "/data/homeserver.db"
+# vim:ft=yaml
 
-suppress_key_server_warning: true
+recaptcha_public_key: 6Lc4S7QqAAAAAA55AmAKFHycvEZUIBT0onJ6Rjff
+recaptcha_private_key: 6Lc4S7QqAAAAAH_NGxHoDBFCJywQXIHtvoTX9kiD
+enable_registration_captcha: true

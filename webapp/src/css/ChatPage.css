@@ -1,0 +1,145 @@
+/* Reset and base styles */
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+/* Chat page layout */
+.chat-page {
+    display: flex;
+    height: 100%;
+    box-sizing: border-box;
+    width: 100%;
+    background-color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+
+}
+
+/* Sidebar styles */
+.sidebar {
+    display: flex;
+    width: 300px;
+    background-color: #242424;
+    box-sizing: border-box;
+    flex-direction: column;
+    border-right: 1px solid #333;
+    overflow-y: auto;
+}
+
+.rooms-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 50%;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+.room-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    cursor: pointer;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    transition: all 0.2s ease;
+}
+
+.room-item:hover {
+    background-color: #333;
+    transform: translateX(2px);
+}
+
+.room-item.selected {
+    background-color: #3a3a3a;
+    border-left: 4px solid #007bff;
+}
+
+.room-avatar {
+    width: 40px;
+    height: 40px;
+    background-color: #007bff;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    margin-right: 12px;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.add-room {
+    margin: 16px;
+    padding: 12px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: center;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.add-room:hover {
+    background-color: #0056b3;
+}
+
+/* People list styles */
+.people-list {
+    padding: 16px;
+    border-top: 1px solid #333;
+}
+
+.people-list h4 {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.person-item {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.person-item:hover {
+    background-color: #2a2a2a;
+}
+
+.person-item img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    margin-right: 12px;
+    border: 2px solid #333;
+}
+
+/* Chat area styles */
+.chat-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #1a1a1a;
+    position: relative;
+}
+
+.select-room {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: #666;
+}

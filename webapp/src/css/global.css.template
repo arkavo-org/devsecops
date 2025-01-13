@@ -10,8 +10,8 @@ body {
 }
 
 :root {
-    --arkavo-orange: #F4A460;
-    --arkavo-dark-orange: #f99742;
+    --arkavo-orange: $BRAND_COLOR_LIGHT;
+    --arkavo-dark-orange: $BRAND_COLOR_DARK;
     --arkavo-dark: #333333;
     --arkavo-light: #FFFFFF;
     --arkavo-gray: #CCCCCC;

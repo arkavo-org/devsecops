@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import './global.css';
-import './Profile.css';
+import './css/global.css';
+import './css/Profile.css';
 
 const Profile: React.FC = () => {
   const [profileData, setProfileData] = useState<{ [key: string]: any } | null>(null);

@@ -11,10 +11,14 @@ import (
 )
 
 func main() {
+	// Initialize Keycloak
 	keycloak_initialize()
 
 	// Create a new Gin router
 	router := gin.Default()
+
+	// Initialize IRC and set up its routes
+	irc_init(router)
 
 	// Define a group for routes under the /org base path
 	orgRoutes := router.Group("/")
@@ -22,17 +26,12 @@ func main() {
 		orgRoutes.GET("/", func(c *gin.Context) {
 			c.JSON(http.StatusOK, gin.H{
 				"status":  "ok",
-				"message": "Org backend is running",
+				"message": "Orgs backend is running",
 			})
 		})
-		// Protected routes (require authentication)
-		protected := router.Group("/api")
-		protected.Use(AuthMiddleware())
-		{
-			protected.POST("/sendmessage", bluesky_sendmessage)
-			protected.GET("/getmessage", bluesky_getmessagesHandler)
-			protected.GET("/user", keycloak_getuserdataHandler)
-		}
+		orgRoutes.POST("/sendmessage", bluesky_sendmessage)
+		orgRoutes.GET("/getmessage", bluesky_getmessagesHandler)
+		orgRoutes.GET("/user", keycloak_getuserdataHandler)
 
 		orgRoutes.GET("/users", func(c *gin.Context) {
 			users, err := keycloak_getusers(context.Background())

@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useKeycloak } from '@react-keycloak/web';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faBell, faEnvelope, faCalendar } from '@fortawesome/free-solid-svg-icons';
-import './Navbar.css';
-import logo from './assets/arkavo.svg';
+import './css/Navbar.css';
+import logo from './assets/logo.png';
 import { loginAndFetchProfile, logoutAndClearProfile, UserProfile } from './keycloakUtils';
 import { faLock } from '@fortawesome/free-solid-svg-icons/faLock';
 
@@ -45,7 +45,7 @@ const Navbar: React.FC = () => {
       <div className="logo-container">
         <img src={logo} className="icon" alt="Arkavo logo" />
         <div className="navbar-logo">
-          <a href="/" className="home-link">Arkavo</a>
+          <a href="/" className="home-link">{import.meta.env.VITE_BRAND_NAME}</a>
         </div>
       </div>
       <form className="navbar-search">

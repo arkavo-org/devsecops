@@ -1,7 +1,7 @@
 // src/Events.tsx
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import './Events.css';
+import './css/Events.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSearch } from '@fortawesome/free-solid-svg-icons';
 import FullCalendar from '@fullcalendar/react';
@@ -57,9 +57,9 @@ const Events: React.FC = () => {
         );
     }, [searchParams, events]);
 
+    //<b>{eventInfo.timeText}</b>
     const renderEventContent = (eventInfo: EventApi) => (
         <div>
-            <b>{eventInfo.timeText}</b>
             <i>{eventInfo.title}</i>
         </div>
     );

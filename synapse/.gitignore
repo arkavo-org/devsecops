@@ -9,3 +9,5 @@ homeserver.yaml
 homeserver.log.20*
 registration_shared_secret
 *.signing.key
+media_store
+homeserver.db*

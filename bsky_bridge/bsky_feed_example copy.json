@@ -1,0 +1,331 @@
+{
+    "post": {
+        "author": {
+            "did": "did:plc:z72i7hdynmk6r22z27h6tvur",
+            "handle": "bsky.app",
+            "associated": {
+                "chat": {
+                    "allow_incoming": "none",
+                    "py_type": "app.bsky.actor.defs#profileAssociatedChat"
+                },
+                "feedgens": null,
+                "labeler": null,
+                "lists": null,
+                "starter_packs": null,
+                "py_type": "app.bsky.actor.defs#profileAssociated"
+            },
+            "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihagr2cmvl2jt4mgx3sppwe2it3fwolkrbtjrhcnwjk4jdijhsoze@jpeg",
+            "created_at": "2023-04-12T04:53:57.057Z",
+            "display_name": "Bluesky",
+            "labels": [],
+            "viewer": {
+                "blocked_by": false,
+                "blocking": null,
+                "blocking_by_list": null,
+                "followed_by": null,
+                "following": "at://did:plc:m3oieo7sv3zjv4ggmeietxzs/app.bsky.graph.follow/3leugvjjppl2n",
+                "known_followers": null,
+                "muted": false,
+                "muted_by_list": null,
+                "py_type": "app.bsky.actor.defs#viewerState"
+            },
+            "py_type": "app.bsky.actor.defs#profileViewBasic"
+        },
+        "cid": "bafyreige6pherfxdylfnnzngo3evjxuso72ognnfltnxa4rxktlqnbk4ra",
+        "indexed_at": "2025-01-02T21:05:23.167Z",
+        "record": {
+            "created_at": "2025-01-02T21:05:19.109Z",
+            "text": "\n\ud83d\udce2 1.96.3 rolling out\n\nOn mobile, you'll also notice the Discover feed now shows \"Trending\" at the top!\n\nScreenshot below, with bonus puppy content from TashasEv.\n\n(You can disable this by pressing the X button at the end of the Trends, or in your Settings.)",
+            "embed": {
+                "images": [
+                    {
+                        "alt": "A screenshot of the mobile version of Bluesky. The \"Discover\" feed is active, and at the top there is a \"Trending\" section. It shows \"New Orleans Attack\", \"Meghan Markle\", and \"Meta Leadership\"",
+                        "image": {
+                            "mime_type": "image/jpeg",
+                            "size": 928464,
+                            "ref": {
+                                "link": "bafkreiblzvfqwaixdxtud6ubeilb4yyc6zdfsmfinfh4lpojik2tql7gwa"
+                            },
+                            "py_type": "blob"
+                        },
+                        "aspect_ratio": {
+                            "height": 1649,
+                            "width": 1546,
+                            "py_type": "app.bsky.embed.defs#aspectRatio"
+                        },
+                        "py_type": "app.bsky.embed.images#image"
+                    }
+                ],
+                "py_type": "app.bsky.embed.images"
+            },
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": [
+                "en"
+            ],
+            "reply": {
+                "parent": {
+                    "cid": "bafyreifpraldnb4tvrazdw6z4cnwj3ked5pfc2wn7yiuxro5rap6u3t6pq",
+                    "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3lery4ketx226",
+                    "py_type": "com.atproto.repo.strongRef"
+                },
+                "root": {
+                    "cid": "bafyreifpraldnb4tvrazdw6z4cnwj3ked5pfc2wn7yiuxro5rap6u3t6pq",
+                    "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3lery4ketx226",
+                    "py_type": "com.atproto.repo.strongRef"
+                },
+                "py_type": "app.bsky.feed.post#replyRef"
+            },
+            "tags": null,
+            "py_type": "app.bsky.feed.post"
+        },
+        "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3lery4kfrak26",
+        "embed": {
+            "images": [
+                {
+                    "alt": "A screenshot of the mobile version of Bluesky. The \"Discover\" feed is active, and at the top there is a \"Trending\" section. It shows \"New Orleans Attack\", \"Meghan Markle\", and \"Meta Leadership\"",
+                    "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreiblzvfqwaixdxtud6ubeilb4yyc6zdfsmfinfh4lpojik2tql7gwa@jpeg",
+                    "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreiblzvfqwaixdxtud6ubeilb4yyc6zdfsmfinfh4lpojik2tql7gwa@jpeg",
+                    "aspect_ratio": {
+                        "height": 1649,
+                        "width": 1546,
+                        "py_type": "app.bsky.embed.defs#aspectRatio"
+                    },
+                    "py_type": "app.bsky.embed.images#viewImage"
+                }
+            ],
+            "py_type": "app.bsky.embed.images#view"
+        },
+        "labels": [],
+        "like_count": 4600,
+        "quote_count": 70,
+        "reply_count": 220,
+        "repost_count": 382,
+        "threadgate": null,
+        "viewer": {
+            "embedding_disabled": false,
+            "like": null,
+            "pinned": null,
+            "reply_disabled": null,
+            "repost": null,
+            "thread_muted": false,
+            "py_type": "app.bsky.feed.defs#viewerState"
+        },
+        "py_type": "app.bsky.feed.defs#postView"
+    },
+    "feed_context": null,
+    "reason": null,
+    "reply": {
+        "parent": {
+            "author": {
+                "did": "did:plc:z72i7hdynmk6r22z27h6tvur",
+                "handle": "bsky.app",
+                "associated": {
+                    "chat": {
+                        "allow_incoming": "none",
+                        "py_type": "app.bsky.actor.defs#profileAssociatedChat"
+                    },
+                    "feedgens": null,
+                    "labeler": null,
+                    "lists": null,
+                    "starter_packs": null,
+                    "py_type": "app.bsky.actor.defs#profileAssociated"
+                },
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihagr2cmvl2jt4mgx3sppwe2it3fwolkrbtjrhcnwjk4jdijhsoze@jpeg",
+                "created_at": "2023-04-12T04:53:57.057Z",
+                "display_name": "Bluesky",
+                "labels": [],
+                "viewer": {
+                    "blocked_by": false,
+                    "blocking": null,
+                    "blocking_by_list": null,
+                    "followed_by": null,
+                    "following": "at://did:plc:m3oieo7sv3zjv4ggmeietxzs/app.bsky.graph.follow/3leugvjjppl2n",
+                    "known_followers": null,
+                    "muted": false,
+                    "muted_by_list": null,
+                    "py_type": "app.bsky.actor.defs#viewerState"
+                },
+                "py_type": "app.bsky.actor.defs#profileViewBasic"
+            },
+            "cid": "bafyreifpraldnb4tvrazdw6z4cnwj3ked5pfc2wn7yiuxro5rap6u3t6pq",
+            "indexed_at": "2025-01-02T21:05:23.148Z",
+            "record": {
+                "created_at": "2025-01-02T21:05:19.108Z",
+                "text": "\ud83d\udce2 1.96.3 rolling out with some small features and fixes\n\n\u2022 Enabled landscape orientation when viewing an image\n\u2022 Crashfix for android video\n\u2022 Fixed mute words in trending\n\u2022 Updated localizations\n\u2022 Added Greek translation\n\n1/2",
+                "embed": null,
+                "entities": null,
+                "facets": null,
+                "labels": null,
+                "langs": [
+                    "en"
+                ],
+                "reply": null,
+                "tags": null,
+                "py_type": "app.bsky.feed.post"
+            },
+            "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3lery4ketx226",
+            "embed": null,
+            "labels": [],
+            "like_count": 19813,
+            "quote_count": 252,
+            "reply_count": 1131,
+            "repost_count": 1841,
+            "threadgate": null,
+            "viewer": {
+                "embedding_disabled": false,
+                "like": null,
+                "pinned": null,
+                "reply_disabled": null,
+                "repost": null,
+                "thread_muted": false,
+                "py_type": "app.bsky.feed.defs#viewerState"
+            },
+            "py_type": "app.bsky.feed.defs#postView"
+        },
+        "root": {
+            "author": {
+                "did": "did:plc:z72i7hdynmk6r22z27h6tvur",
+                "handle": "bsky.app",
+                "associated": {
+                    "chat": {
+                        "allow_incoming": "none",
+                        "py_type": "app.bsky.actor.defs#profileAssociatedChat"
+                    },
+                    "feedgens": null,
+                    "labeler": null,
+                    "lists": null,
+                    "starter_packs": null,
+                    "py_type": "app.bsky.actor.defs#profileAssociated"
+                },
+                "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihagr2cmvl2jt4mgx3sppwe2it3fwolkrbtjrhcnwjk4jdijhsoze@jpeg",
+                "created_at": "2023-04-12T04:53:57.057Z",
+                "display_name": "Bluesky",
+                "labels": [],
+                "viewer": {
+                    "blocked_by": false,
+                    "blocking": null,
+                    "blocking_by_list": null,
+                    "followed_by": null,
+                    "following": "at://did:plc:m3oieo7sv3zjv4ggmeietxzs/app.bsky.graph.follow/3leugvjjppl2n",
+                    "known_followers": null,
+                    "muted": false,
+                    "muted_by_list": null,
+                    "py_type": "app.bsky.actor.defs#viewerState"
+                },
+                "py_type": "app.bsky.actor.defs#profileViewBasic"
+            },
+            "cid": "bafyreifpraldnb4tvrazdw6z4cnwj3ked5pfc2wn7yiuxro5rap6u3t6pq",
+            "indexed_at": "2025-01-02T21:05:23.148Z",
+            "record": {
+                "created_at": "2025-01-02T21:05:19.108Z",
+                "text": "\ud83d\udce2 1.96.3 rolling out with some small features and fixes\n\n\u2022 Enabled landscape orientation when viewing an image\n\u2022 Crashfix for android video\n\u2022 Fixed mute words in trending\n\u2022 Updated localizations\n\u2022 Added Greek translation\n\n1/2",
+                "embed": null,
+                "entities": null,
+                "facets": null,
+                "labels": null,
+                "langs": [
+                    "en"
+                ],
+                "reply": null,
+                "tags": null,
+                "py_type": "app.bsky.feed.post"
+            },
+            "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3lery4ketx226",
+            "embed": null,
+            "labels": [],
+            "like_count": 19813,
+            "quote_count": 252,
+            "reply_count": 1131,
+            "repost_count": 1841,
+            "threadgate": null,
+            "viewer": {
+                "embedding_disabled": false,
+                "like": null,
+                "pinned": null,
+                "reply_disabled": null,
+                "repost": null,
+                "thread_muted": false,
+                "py_type": "app.bsky.feed.defs#viewerState"
+            },
+            "py_type": "app.bsky.feed.defs#postView"
+        },
+        "grandparent_author": null,
+        "py_type": "app.bsky.feed.defs#replyRef"
+    },
+    "py_type": "app.bsky.feed.defs#feedViewPost"
+}
+  DEBUG:root:Post: {
+    "post": {
+        "author": {
+            "did": "did:plc:z72i7hdynmk6r22z27h6tvur",
+            "handle": "bsky.app",
+            "associated": {
+                "chat": {
+                    "allow_incoming": "none",
+                    "py_type": "app.bsky.actor.defs#profileAssociatedChat"
+                },
+                "feedgens": null,
+                "labeler": null,
+                "lists": null,
+                "starter_packs": null,
+                "py_type": "app.bsky.actor.defs#profileAssociated"
+            },
+            "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:z72i7hdynmk6r22z27h6tvur/bafkreihagr2cmvl2jt4mgx3sppwe2it3fwolkrbtjrhcnwjk4jdijhsoze@jpeg",
+            "created_at": "2023-04-12T04:53:57.057Z",
+            "display_name": "Bluesky",
+            "labels": [],
+            "viewer": {
+                "blocked_by": false,
+                "blocking": null,
+                "blocking_by_list": null,
+                "followed_by": null,
+                "following": "at://did:plc:m3oieo7sv3zjv4ggmeietxzs/app.bsky.graph.follow/3leugvjjppl2n",
+                "known_followers": null,
+                "muted": false,
+                "muted_by_list": null,
+                "py_type": "app.bsky.actor.defs#viewerState"
+            },
+            "py_type": "app.bsky.actor.defs#profileViewBasic"
+        },
+        "cid": "bafyreifpraldnb4tvrazdw6z4cnwj3ked5pfc2wn7yiuxro5rap6u3t6pq",
+        "indexed_at": "2025-01-02T21:05:23.148Z",
+        "record": {
+            "created_at": "2025-01-02T21:05:19.108Z",
+            "text": "\ud83d\udce2 1.96.3 rolling out with some small features and fixes\n\n\u2022 Enabled landscape orientation when viewing an image\n\u2022 Crashfix for android video\n\u2022 Fixed mute words in trending\n\u2022 Updated localizations\n\u2022 Added Greek translation\n\n1/2",
+            "embed": null,
+            "entities": null,
+            "facets": null,
+            "labels": null,
+            "langs": [
+                "en"
+            ],
+            "reply": null,
+            "tags": null,
+            "py_type": "app.bsky.feed.post"
+        },
+        "uri": "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.post/3lery4ketx226",
+        "embed": null,
+        "labels": [],
+        "like_count": 19813,
+        "quote_count": 252,
+        "reply_count": 1131,
+        "repost_count": 1841,
+        "threadgate": null,
+        "viewer": {
+            "embedding_disabled": false,
+            "like": null,
+            "pinned": null,
+            "reply_disabled": null,
+            "repost": null,
+            "thread_muted": false,
+            "py_type": "app.bsky.feed.defs#viewerState"
+        },
+        "py_type": "app.bsky.feed.defs#postView"
+    },
+    "feed_context": null,
+    "reason": null,
+    "reply": null,
+    "py_type": "app.bsky.feed.defs#feedViewPost"
+}

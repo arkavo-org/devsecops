@@ -105,7 +105,7 @@ const Privacy: React.FC = () => {
                 </p>
             </section>
 
-            <section class="section support">
+            <section className="section support">
                 <h2>Support</h2>
                 <p>
                     At Arkavo, we are committed to providing you with the highest level

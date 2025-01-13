@@ -1,0 +1,38 @@
+/* Content image styling */
+.feed-item-content .content-image {
+    display: block;
+    max-width: 90%; /* Default: 90% width */
+    height: auto;   /* Maintains the aspect ratio of the image */
+    margin: 0 auto; /* Centers the image horizontally */
+    border-radius: 4px; /* Optional: adds rounded corners to the image */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Optional: adds a shadow */
+}
+
+/* Outer container for the feed */
+.feed-container-outer {
+    padding: 0px;
+    margin: 0 auto;
+    height: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+/* Inner container to center and constrain width */
+.feed-container {
+    padding: 0;
+    /*max-width: 40%;(*/
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+/* Media query for mobile */
+@media (max-width: 768px) {
+    .feed-item-content .content-image {
+        max-width: 95%; /* Increase width to 95% for mobile devices */
+    }
+
+    .feed-container {
+        max-width: 95%; /* Adjust container width for smaller screens */
+        padding: 10px;  /* Reduce padding to optimize space */
+    }
+}

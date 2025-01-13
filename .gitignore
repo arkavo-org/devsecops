@@ -244,3 +244,11 @@ jwt_secret.txt
 alice*
 synapse/element-config.json
 
+webapp/src/global.css
+webapp/src/wtf.json
+synapse/homeserver.db
+synapse/homeserver.db-shm
+synapse/homeserver.db-wal
+webapp/index.html
+webapp/src/css/global.css
+webapp/vite.config.ts

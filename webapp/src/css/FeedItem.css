@@ -113,3 +113,31 @@
 .feed-item a:hover {
     text-decoration: underline;
 }
+
+/* Content image styling */
+.feed-item-content .content-image {
+
+    word-wrap: break-word; /* Allows long words to break */
+    overflow-wrap: break-word; /* Alternative for better compatibility */
+    white-space: pre-wrap; /* Preserves whitespace and enables wrapping */
+    display: block;
+    max-width: 90%; /* Limits the width to 90% of the available area */
+    height: auto;   /* Maintains the aspect ratio of the image */
+    margin: 0 auto; /* Centers the image horizontally */
+    border-radius: 4px; /* Optional: adds rounded corners to the image */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Optional: adds a shadow */
+}
+
+
+/* Content image styling */
+.content-text {
+    word-wrap: break-word; /* Allows long words to break */
+    overflow-wrap: break-word; /* Alternative for better compatibility */
+    white-space: pre-wrap; /* Preserves whitespace and enables wrapping */
+    display: block;
+    max-width: 90%; /* Limits the width to 90% of the available area */
+    height: auto;   /* Maintains the aspect ratio of the image */
+    margin: 0 auto; /* Centers the image horizontally */
+    border-radius: 4px; /* Optional: adds rounded corners to the image */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); /* Optional: adds a shadow */
+}

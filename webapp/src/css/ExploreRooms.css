@@ -1,0 +1,63 @@
+#public-rooms-container {
+    padding: 20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#public-rooms-container ul {
+    list-style: none;
+    padding: 0;
+}
+
+#public-rooms-container li {
+    border: 1px solid #ddd;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+}
+
+#public-rooms-container h2 {
+    margin: 0 0 5px;
+}
+
+#public-rooms-container p {
+    margin: 0 0 10px;
+    color: #555;
+}
+
+#create-room-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.create-room-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 150px;
+    height: 150px;
+    border: 2px dashed #ccc;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.create-room-box:hover {
+    border-color: #007bff;
+    background-color: #f9f9f9;
+}
+
+.plus-sign {
+    font-size: 48px;
+    font-weight: bold;
+    color: #007bff;
+}
+
+.create-room-box p {
+    margin-top: 10px;
+    font-size: 16px;
+    color: #555;
+}

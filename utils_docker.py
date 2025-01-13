@@ -197,7 +197,7 @@ def run_container(config):
         print(f"No container is running with name {container_name}")
     # Now run it
     print(f"Starting {container_name}")
-    DOCKER_CLIENT.containers.run(**config)
+    return DOCKER_CLIENT.containers.run(**config)
 
 
 def wait_for_db(network, db_url, db_user="postgres", max_attempts=30, delay=2):
@@ -375,39 +375,50 @@ def generateProdKeys(env):
         )
     )
 
-def model_exists(model_name):
-    try:
-        # Run the curl command
-        result = subprocess.run(
-            [
+
+def model_exists(model_name, network):
+    # Run the container and capture the result
+    result = run_container(
+        dict(
+            image="curlimages/curl",
+            name="ModelPull",
+            command=[
                 "curl",
                 "-s",
                 "-X", "POST",
-                "http://localhost:11434/api/show",
+                "http://ollama:11434/api/show",
                 "-H", "Content-Type: application/json",
                 "-d", json.dumps({"name": model_name}),
             ],
-            capture_output=True,
-            text=True,
+            network=network,
+            detach=False,
         )
-        # Parse the JSON response
-        response = json.loads(result.stdout)
+    )
+    
+    # Decode the bytes object to a string
+    response_json = result.decode('utf-8')
 
-        # Check if the response contains the model's metadata
-        if "license" in response or "modelfile" in response:
-            return True
-        else:
-            return False
-    except Exception as e:
-        print(f"Error checking model: {e}")
+    # Parse the JSON response
+    try:
+        response = json.loads(response_json)
+    except json.JSONDecodeError:
+        print(f"Error: Invalid JSON response: {response_json}")
         return False
+
+    # Check if the response contains the model's metadata
+    if "license" in response or "modelfile" in response:
+        return True
+    else:
+        print(f"Error: Model metadata not found in response: {response}")
+        return False
+    
 
 # to test a model
 # curl http://localhost:11434/api/chat -d '{"model": "llama3.2", "messages": [{"role": "user", "content": "How are you?"}]}' | jq
 
-def pullModels(models_to_pull):
+def pullModels(models_to_pull, network):
     for model_name in models_to_pull:
-        if not model_exists(model_name):
+        if not model_exists(model_name, network):
             print(f"Pulling model: {model_name}")
             run_container(
                 dict(
@@ -417,11 +428,11 @@ def pullModels(models_to_pull):
                         "curl",
                         "-X",
                         "POST",
-                        "http://localhost:11434/api/pull",
+                        "http://ollama:11434/api/pull",
                         "-d",
                         json.dumps({"model": model_name}),
                     ],
-                    network_mode="host",
+                    network=network,
                     remove=True,
                     detach=False,
                 )

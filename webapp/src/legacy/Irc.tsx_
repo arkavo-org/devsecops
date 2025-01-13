@@ -1,0 +1,89 @@
+import React, { useEffect, useState } from 'react';
+import WebIRC from 'webirc'; // Install and import webirc
+import './global.css';
+
+const IRCChat: React.FC = () => {
+  const [profileData, setProfileData] = useState<{ [key: string]: any } | null>(null);
+  const [messages, setMessages] = useState<string[]>([]);
+  const [message, setMessage] = useState('');
+  const [client, setClient] = useState<any>(null);
+
+  useEffect(() => {
+    // Load profile data from localStorage
+    const storedProfile = localStorage.getItem('userProfile');
+    if (storedProfile) {
+      setProfileData(JSON.parse(storedProfile));
+    }
+  }, []);
+
+  useEffect(() => {
+    // Connect to IRC when profile data is loaded
+    if (profileData && profileData.nickname) {
+      connectToIRC(profileData.nickname);
+    }
+  }, [profileData]);
+
+  const connectToIRC = (nickname: string) => {
+    const ircClient = new WebIRC.Client({
+      server: import.meta.env.VITE_IRC_SERVER, // Define in Vite's environment variables
+      port: import.meta.env.VITE_IRC_PORT || 6667,
+      nick: nickname,
+    });
+
+    ircClient.on('connected', () => {
+      console.log(`Connected to IRC as ${nickname}`);
+    });
+
+    ircClient.on('message', (msg: any) => {
+      setMessages((prev) => [...prev, `${msg.prefix}: ${msg.params?.join(' ')}`]);
+    });
+
+    ircClient.on('error', (error: any) => {
+      console.error('IRC Error:', error);
+    });
+
+    setClient(ircClient);
+  };
+
+  const sendMessage = () => {
+    if (client && message.trim()) {
+      client.send('PRIVMSG', '#channel', message); // Replace `#channel` with the actual channel name
+      setMessages((prev) => [...prev, `You: ${message}`]);
+      setMessage('');
+    }
+  };
+
+  // Ensure to clean up on component unmount
+  useEffect(() => {
+    return () => {
+      client?.disconnect();
+    };
+  }, [client]);
+
+  if (!profileData) {
+    return <div>Loading profile...</div>;
+  }
+
+  return (
+    <div id="app-container">
+      <div className="irc-container">
+        <h2>IRC Chat</h2>
+        <p>Connected as: {profileData.nickname}</p>
+        <div className="chat-box">
+          {messages.map((msg, index) => (
+            <div key={index}>{msg}</div>
+          ))}
+        </div>
+        <input
+          type="text"
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Type your message"
+        />
+        <button onClick={sendMessage}>Send</button>
+      </div>
+    </div>
+  );
+};
+
+export default IRCChat;

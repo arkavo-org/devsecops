@@ -1,0 +1,32 @@
+sequenceDiagram
+    participant W as Web Client (Public)
+    participant K as Keycloak
+    participant S as Synapse Server
+
+    Note over W,S: Initial Setup
+    S->>K: Register with client_id & client_secret
+    W->>K: Register with client_id (public)
+
+    Note over W,S: Authentication Flow
+    W->>K: 1. Authorization Code Request
+    K->>W: 2. Redirect with Auth Code
+    W->>K: 3. Token Request (code + client_id)
+    K->>W: 4. Access & Refresh Tokens
+
+    Note over S,K: Server Authentication
+    S->>K: 5. Token Request (client_credentials)
+    K->>S: 6. Access Token
+
+    Note over W,S: API Communication
+    W->>S: 7. API Request + Access Token
+    S->>K: 8. Token Introspection
+    K->>S: 9. Token Validation Response
+    S->>W: 10. API Response
+
+    Note over W,K: Token Refresh
+    W->>K: 11. Refresh Token Request
+    K->>W: 12. New Access & Refresh Tokens
+
+    Note right of K: Keycloak serves as the<br/>Authorization Server<br/>and Identity Provider
+    Note right of S: Synapse uses confidential<br/>client credentials flow
+    Note right of W: Web Client uses<br/>Authorization Code flow<br/>with PKCE
