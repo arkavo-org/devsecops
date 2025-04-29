@@ -6,7 +6,7 @@ import { useKeycloak } from '@react-keycloak/web';
 import { useNavigate } from 'react-router-dom';
 import { Chat } from './Chat';
 import { handleLogin } from './ChatAuth';
-import { fetchRooms, fetchPeople, joinRoom } from './Utils'; // Import joinRoom function
+import { fetchRooms, fetchPeople, joinRoom, validateToken, refreshToken } from './Utils'; // Import required functions
 
 const ChatPage: React.FC = () => {
     const { keycloak, initialized } = useKeycloak();
@@ -29,15 +29,49 @@ const ChatPage: React.FC = () => {
     };
 
     const handleRoomSelect = async (roomId: string) => {
-        const storedAccessToken = localStorage.getItem('matrixAccessToken');
-        if (storedAccessToken) {
-            try {
-                // Join the room if not already a member
-                await joinRoom(storedAccessToken, synapseBaseUrl, roomId);
-                setSelectedRoom(roomId);
-                localStorage.setItem('selectedRoom', roomId); // Save the selected room to localStorage
-            } catch (error) {
-                setError((error as Error).message);
+        let storedAccessToken = localStorage.getItem('matrixAccessToken');
+        if (!storedAccessToken) {
+            handleLogin();
+            return;
+        }
+
+        try {
+            // Validate the token
+            const isValid = await validateToken(storedAccessToken, synapseBaseUrl);
+            
+            if (!isValid) {
+                // Token is invalid, try to refresh it
+                const refreshedToken = await refreshToken(storedAccessToken, synapseBaseUrl);
+                
+                if (refreshedToken) {
+                    // Successfully refreshed the token
+                    localStorage.setItem('matrixAccessToken', refreshedToken);
+                    storedAccessToken = refreshedToken;
+                } else {
+                    // Refresh failed, redirect to login
+                    console.log("Token refresh failed, redirecting to login");
+                    localStorage.removeItem('matrixAccessToken');
+                    handleLogin();
+                    return;
+                }
+            }
+
+            // Join the room if not already a member
+            await joinRoom(storedAccessToken, synapseBaseUrl, roomId);
+            setSelectedRoom(roomId);
+            localStorage.setItem('selectedRoom', roomId); // Save the selected room to localStorage
+        } catch (error) {
+            setError((error as Error).message);
+            
+            // Check if the error is related to authentication
+            const errorMessage = (error as Error).message;
+            if (
+                errorMessage.includes('Authentication failed') || 
+                errorMessage.includes('Unauthorized') ||
+                errorMessage.includes('Forbidden')
+            ) {
+                localStorage.removeItem('matrixAccessToken');
+                handleLogin();
             }
         }
     };
@@ -46,17 +80,48 @@ const ChatPage: React.FC = () => {
         const initialize = async () => {
             const storedAccessToken = localStorage.getItem('matrixAccessToken');
             if (storedAccessToken) {
-                accessTokenRef.current = storedAccessToken;
                 try {
-                    const peopleData = await fetchPeople(storedAccessToken, synapseBaseUrl);
-                    setPeople(peopleData);
+                    // Validate the token
+                    const isValid = await validateToken(storedAccessToken, synapseBaseUrl);
+                    
+                    if (isValid) {
+                        // Token is valid, proceed normally
+                        accessTokenRef.current = storedAccessToken;
+                        const peopleData = await fetchPeople(storedAccessToken, synapseBaseUrl);
+                        setPeople(peopleData);
 
-                    const roomsData = await fetchRooms(storedAccessToken, synapseBaseUrl);
-                    setRooms(roomsData);
+                        const roomsData = await fetchRooms(storedAccessToken, synapseBaseUrl);
+                        setRooms(roomsData);
+                    } else {
+                        // Token is invalid, try to refresh it
+                        const refreshedToken = await refreshToken(storedAccessToken, synapseBaseUrl);
+                        
+                        if (refreshedToken) {
+                            // Successfully refreshed the token
+                            localStorage.setItem('matrixAccessToken', refreshedToken);
+                            accessTokenRef.current = refreshedToken;
+                            
+                            // Fetch data with the new token
+                            const peopleData = await fetchPeople(refreshedToken, synapseBaseUrl);
+                            setPeople(peopleData);
+
+                            const roomsData = await fetchRooms(refreshedToken, synapseBaseUrl);
+                            setRooms(roomsData);
+                        } else {
+                            // Refresh failed, redirect to login
+                            console.log("Token refresh failed, redirecting to login");
+                            localStorage.removeItem('matrixAccessToken');
+                            handleLogin();
+                        }
+                    }
                 } catch (error) {
                     setError((error as Error).message);
+                    // On any error, it's safer to redirect to login
+                    localStorage.removeItem('matrixAccessToken');
+                    handleLogin();
                 }
             } else {
+                // No token found, redirect to login
                 handleLogin();
             }
             setLoading(false);

@@ -2,6 +2,55 @@
 
 import { json } from "stream/consumers";
 
+// Function to validate if a Matrix token is still valid
+export const validateToken = async (token: string, synapseBaseUrl: string): Promise<boolean> => {
+    try {
+        // Make a simple API call to check if the token is valid
+        // Using /account/whoami is a lightweight way to validate the token
+        const response = await fetch(`https://${synapseBaseUrl}/_matrix/client/v3/account/whoami`, {
+            headers: { 
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json' 
+            },
+        });
+        
+        return response.ok;
+    } catch (error) {
+        console.error('Token validation error:', error);
+        return false;
+    }
+};
+
+// Function to attempt token refresh
+export const refreshToken = async (token: string, synapseBaseUrl: string): Promise<string | null> => {
+    try {
+        // Matrix doesn't have a standard refresh token mechanism
+        // This is a placeholder for a custom refresh implementation
+        // You might need to implement this based on your specific Matrix server setup
+        
+        // For example, if your server supports token refresh:
+        const response = await fetch(`https://${synapseBaseUrl}/_matrix/client/v3/refresh`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                refresh_token: token,
+            }),
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            return data.access_token;
+        }
+        
+        return null;
+    } catch (error) {
+        console.error('Token refresh error:', error);
+        return null;
+    }
+};
+
 export const fetchUserProfile = async (userId: string, token: string, synapseBaseUrl: string) => {
     const response = await fetch(`https://${synapseBaseUrl}/_matrix/client/v3/profile/${userId}`, {
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -120,9 +169,27 @@ export interface Message {
 const sinceTokens = new Map<string, string>(); // Map to store `since` tokens per room
 
 export const fetchMessages = async (roomId: string, synapseBaseUrl: string, partial: boolean) => {
-    const accessToken = localStorage.getItem('matrixAccessToken');
+    let accessToken = localStorage.getItem('matrixAccessToken');
     if (!accessToken) {
         throw new Error('Access token not found.');
+    }
+
+    // Validate the token
+    const isValid = await validateToken(accessToken, synapseBaseUrl);
+    
+    if (!isValid) {
+        // Token is invalid, try to refresh it
+        const refreshedToken = await refreshToken(accessToken, synapseBaseUrl);
+        
+        if (refreshedToken) {
+            // Successfully refreshed the token
+            localStorage.setItem('matrixAccessToken', refreshedToken);
+            accessToken = refreshedToken;
+        } else {
+            // Refresh failed, throw error to trigger login redirect
+            localStorage.removeItem('matrixAccessToken');
+            throw new Error('Token invalid and refresh failed. Please login again.');
+        }
     }
 
     const syncUrl = new URL(`https://${synapseBaseUrl}/_matrix/client/v3/sync`);
@@ -145,6 +212,11 @@ export const fetchMessages = async (roomId: string, synapseBaseUrl: string, part
     });
 
     if (!response.ok) {
+        // If fetching fails due to auth issues, throw a specific error
+        if (response.status === 401 || response.status === 403) {
+            localStorage.removeItem('matrixAccessToken');
+            throw new Error('Authentication failed. Please login again.');
+        }
         throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
     }
 

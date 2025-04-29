@@ -1,10 +1,11 @@
 # Most common options to change
+BACKEND_LOCATION = "arkavo.org"
+GPU_BACKEND_LOCATION = "app.codecollective.us"
 BRAND_NAME = "arkavo"
 VITE_BRAND_NAME = "arkavo"
 BRAND_COLOR_DARK = "#f99742"
 BRAND_COLOR_LIGHT = "#F4A460"
 USER_WEBSITE = "localhost"
-BACKEND_LOCATION = "app.codecollective.us"
 PROTOCOL_USER_WEBSITE = "https://" + USER_WEBSITE
 USER_EMAIL = "youremail@example.com"
 VITE_LOGO_URL="/favicon.png"

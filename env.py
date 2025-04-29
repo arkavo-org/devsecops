@@ -56,8 +56,6 @@ MODELS_TO_PULL = [
 # Keycloak Addresses
 KEYCLOAK_BASE_URL = "keycloak." + BACKEND_LOCATION
 OPENTDF_BASE_URL = "opentdf." + BACKEND_LOCATION
-DEEPSEEK_JANUS_BASE_URL = "deepseek_janus." + BACKEND_LOCATION
-OLLAMA_BASE_URL = "ollama." + BACKEND_LOCATION
 ORG_BASE_URL = "org." + BACKEND_LOCATION
 SYNAPSE_BASE_URL = "matrix." + BACKEND_LOCATION
 BLUESKY_BASE_URL = "bluesky." + BACKEND_LOCATION
@@ -77,13 +75,17 @@ VITE_PROTOCOL_SYNAPSE_BASE_URL = PROTOCOL_SYNAPSE_BASE_URL
 VITE_BLUESKY_HOST = "https://" + BLUESKY_BASE_URL
 VITE_PUBLIC_URL = USER_WEBSITE
 
+# GPU supported services
+DEEPSEEK_JANUS_BASE_URL = "deepseek_janus." + GPU_BACKEND_LOCATION
+OLLAMA_BASE_URL = "ollama." + GPU_BACKEND_LOCATION
+
 # Git Branch Port Config
 # BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
 # Keycloak Config
 KEYCLOAK_REALM = "opentdf"
 KEYCLOAK_INTERNAL_CHECK_ADDR = f"https://{KEYCLOAK_INTERNAL_URL}"
-KEYCLOAK_INTERNAL_AUTH_URL = f"https://{KEYCLOAK_INTERNAL_URL}/auth"
+KEYCLOAK_INTERNAL_AUTH_URL = f"{KEYCLOAK_HOST}/auth"
 VITE_KEYCLOAK_SERVER_URL = KEYCLOAK_HOST + "/auth"
 
 KEYCLOAK_AUTH_URL = KEYCLOAK_HOST + "/auth"
@@ -196,7 +198,8 @@ keycloakdb["volumes"] = {
 keycloak = {
     "name": "keycloak",
     "network": NETWORK_NAME,
-    "image": "cgr.dev/chainguard/keycloak@sha256:37895558d2e0e93ffff75da5900f9ae7e79ec6d1c390b18b2ecea6cee45ec26f",
+    #"image": "cgr.dev/chainguard/keycloak@sha256:37895558d2e0e93ffff75da5900f9ae7e79ec6d1c390b18b2ecea6cee45ec26f",
+    "image": "quay.io/keycloak/keycloak",
     "entrypoint": "/opt/keycloak/keycloak-startup.sh",
     "detach": True,
     "restart_policy": {"Name": "always"},

@@ -62,6 +62,7 @@ if "nginx" in env.SERVICES_TO_RUN:
 if "opentdf" in env.SERVICES_TO_RUN:
     utils_docker.run_container(env.opentdfdb)
     utils_docker.wait_for_db(network=env.NETWORK_NAME, db_url="opentdfdb:5432")
+    print(f"Waiting for {env.KEYCLOAK_INTERNAL_AUTH_URL}")
     utils_docker.wait_for_url(env.KEYCLOAK_INTERNAL_AUTH_URL, network=env.NETWORK_NAME)
     utils_docker.run_container(env.opentdf)
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, KeyboardEvent } from 'react';
 import '../css/Chat.css';
-import { fetchMessages, Message } from './Utils';
+import { fetchMessages, Message, validateToken, refreshToken } from './Utils';
+import { handleLogin } from './ChatAuth';
 
 interface ChatProps {
     roomId: string;
@@ -61,7 +62,22 @@ export const Chat: React.FC<ChatProps> = ({ roomId }) => {
 
             setLoading(false);
         } catch (err) {
-            setError(`Error fetching messages: ${(err as Error).message}`);
+            const errorMessage = (err as Error).message;
+            setError(`Error fetching messages: ${errorMessage}`);
+            
+            // Check for authentication-related errors
+            if (
+                errorMessage.includes('Token invalid') || 
+                errorMessage.includes('Please login again') ||
+                errorMessage.includes('Authentication failed') ||
+                errorMessage.includes('Access token not found')
+            ) {
+                // Redirect to login
+                console.log("Authentication error, redirecting to login");
+                localStorage.removeItem('matrixAccessToken');
+                handleLogin();
+            }
+            
             setLoading(false);
         }
     };
@@ -88,16 +104,38 @@ export const Chat: React.FC<ChatProps> = ({ roomId }) => {
     const handleSubmit = async () => {
         if (!prompt.trim()) return;
 
-        const accessToken = localStorage.getItem('matrixAccessToken');
+        let accessToken = localStorage.getItem('matrixAccessToken');
         if (!accessToken) {
             setError('Access token not found.');
+            handleLogin(); // Redirect to login
             return;
         }
 
-        const txnId = `m${Date.now()}`;
-
+        // Validate the token
         try {
-            await fetch(
+            const isValid = await validateToken(accessToken, synapseBaseUrl);
+            
+            if (!isValid) {
+                // Token is invalid, try to refresh it
+                const refreshedToken = await refreshToken(accessToken, synapseBaseUrl);
+                
+                if (refreshedToken) {
+                    // Successfully refreshed the token
+                    localStorage.setItem('matrixAccessToken', refreshedToken);
+                    accessToken = refreshedToken;
+                } else {
+                    // Refresh failed, redirect to login
+                    console.log("Token refresh failed, redirecting to login");
+                    localStorage.removeItem('matrixAccessToken');
+                    handleLogin();
+                    return;
+                }
+            }
+
+            // Token is valid (or was refreshed), proceed with sending the message
+            const txnId = `m${Date.now()}`;
+
+            const response = await fetch(
                 `https://${synapseBaseUrl}/_matrix/client/v3/rooms/${roomId}/send/m.room.message/${txnId}`,
                 {
                     method: 'PUT',
@@ -112,6 +150,16 @@ export const Chat: React.FC<ChatProps> = ({ roomId }) => {
                 }
             );
 
+            if (!response.ok) {
+                // If sending fails due to auth issues, try to redirect to login
+                if (response.status === 401 || response.status === 403) {
+                    localStorage.removeItem('matrixAccessToken');
+                    handleLogin();
+                    return;
+                }
+                throw new Error(`Failed to send message: ${response.statusText}`);
+            }
+
             setPrompt('');
             setFilteredSuggestions([]);
             setSelectedIndex(-1);
@@ -121,6 +169,8 @@ export const Chat: React.FC<ChatProps> = ({ roomId }) => {
             scrollToBottom();
         } catch (err) {
             setError(`Failed to send message: ${(err as Error).message}`);
+            // If there's an error, it might be due to network issues or other problems
+            // We don't automatically redirect to login for all errors
         }
     };
 
