@@ -271,9 +271,9 @@ Resources:
       SSESpecification:
         SSEEnabled: true
 
-  # NOTE: prod-identity-links, prod-device-bindings, and prod-patreon-tokens
-  # were created out-of-band via `aws dynamodb create-table` before being
-  # codified here. Bring them into the stack with a CFN IMPORT change-set,
+  # NOTE: prod-identity-links, prod-device-bindings, prod-patreon-tokens, and
+  # prod-moderation-reports were created out-of-band via `aws dynamodb
+  # create-table` before being codified here. Bring them into the stack with a CFN IMPORT change-set,
   # not a normal deploy (a normal deploy would fail with
   # AlreadyExistsException). Retain policies guard against stack-delete or
   # replacement wiping live data.
@@ -324,6 +324,49 @@ Resources:
           KeyType: HASH
       SSESpecification:
         SSEEnabled: true
+
+  # arkavo-rs moderation: reports and suspensions (arkavo-rs#77, #93; see its
+  # docs/moderation.md). Suspension items (`suspension#<subject>`) carry no
+  # status or expires_at, so they stay out of the queue index and never expire.
+  # arks-prod reaches it via the inline policy arks-moderation-dynamodb
+  # (PutItem, GetItem, Query on the table and its indexes; no delete).
+  ModerationReportsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub ${Environment}-moderation-reports
+      BillingMode: PAY_PER_REQUEST
+      DeletionProtectionEnabled: true
+      AttributeDefinitions:
+        - AttributeName: report_id
+          AttributeType: S
+        - AttributeName: status
+          AttributeType: S
+        - AttributeName: received_at
+          AttributeType: N
+      KeySchema:
+        - AttributeName: report_id
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: status-received_at-index
+          KeySchema:
+            - AttributeName: status
+              KeyType: HASH
+            - AttributeName: received_at
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: Environment
+          Value: !Ref Environment
 
   # KMS key for authnz-rs Patreon token sealing (envelope encryption:
   # per-row AES-256-GCM DEKs wrapped via kms:Encrypt, unwrapped via
