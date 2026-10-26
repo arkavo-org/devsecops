@@ -233,6 +233,8 @@ Resources:
   # DynamoDB Resources
   HandleTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: !Sub ${Environment}-handles
       BillingMode: PAY_PER_REQUEST
@@ -246,6 +248,8 @@ Resources:
         SSEEnabled: true
   CredentialsTable:
     Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       TableName: !Sub ${Environment}-credentials
       BillingMode: PAY_PER_REQUEST
@@ -266,6 +270,99 @@ Resources:
             ProjectionType: ALL
       SSESpecification:
         SSEEnabled: true
+
+  # NOTE: prod-identity-links, prod-device-bindings, and prod-patreon-tokens
+  # were created out-of-band via `aws dynamodb create-table` before being
+  # codified here. Bring them into the stack with a CFN IMPORT change-set,
+  # not a normal deploy (a normal deploy would fail with
+  # AlreadyExistsException). Retain policies guard against stack-delete or
+  # replacement wiping live data.
+  IdentityLinksTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub ${Environment}-identity-links
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: link_pk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: link_pk
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+
+  DeviceBindingsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub ${Environment}-device-bindings
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: device_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: device_id
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+
+  PatreonTokensTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub ${Environment}-patreon-tokens
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: user_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: user_id
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+
+  # KMS key for authnz-rs Patreon token sealing (envelope encryption:
+  # per-row AES-256-GCM DEKs wrapped via kms:Encrypt, unwrapped via
+  # kms:Decrypt). Referenced by authnz-rs as
+  # PATREON_KMS_KEY_ID=alias/arkavo-patreon-token-key. Created out-of-band
+  # in the console 2026-06-11 (key id 7b1a7a20-295e-480e-bf06-651f67060929);
+  # pending IMPORT — see NOTE above. cf-arkavo-production has
+  # kms:Encrypt/Decrypt via the key policy (key user), not IAM.
+  PatreonTokenKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Arkavo Patreon token sealing (DEK wrapping for authnz-rs)
+      EnableKeyRotation: true
+      Tags:
+        - Key: Purpose
+          Value: patreon-token-sealing
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountAdmin
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+
+  PatreonTokenKeyAlias:
+    Type: AWS::KMS::Alias
+    DeletionPolicy: Retain
+    Properties:
+      AliasName: alias/arkavo-patreon-token-key
+      TargetKeyId: !Ref PatreonTokenKey
+
+  # NOTE: did:webvh v1.0 mandates the eddsa-jcs-2022 (Ed25519) cryptosuite, and
+  # AWS KMS cannot sign Ed25519 — so the did:webvh log update key is a software
+  # Ed25519 key file held by authnz-rs (WEBVH_SIGN_KEY_PATH), NOT a KMS key.
+  # There is intentionally no KMS resource for it here.
 
   # Lambda Function and API Gateway (using SAM)
   HandleCheckFunction:
